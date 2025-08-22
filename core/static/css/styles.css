@@ -3883,6 +3883,7 @@ button.whatsapp-btn#whatsappBtn.fa-brands.fa-whatsapp:not(:visible)::after {
 .payment-simulator-modal {
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(4px);
+  z-index: 1200;
 }
 
 .payment-simulator-modal .modal-dialog {

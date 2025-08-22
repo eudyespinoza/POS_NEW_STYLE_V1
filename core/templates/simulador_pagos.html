@@ -1,20 +1,23 @@
-{% extends 'layout.html' %}
 {% load static %}
 {% load currency %}
-
-{% block title %}Simulador de Pagos{% endblock %}
-
-{% block extra_head %}
-<style>
-  body { background: linear-gradient(#f8fafc, #fff); }
-  .card { border-radius: 1rem; }
-  .badge-soft { background: #fff3cd; color: #b08900; }
-  .mono { font-variant-numeric: tabular-nums; }
-  .dashed { border-top: 1px dashed #cbd5e1; }
-</style>
-{% endblock %}
-
-{% block content %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Simulador de Pagos</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+    />
+    <style>
+      body { background: linear-gradient(#f8fafc, #fff); }
+      .card { border-radius: 1rem; }
+      .badge-soft { background: #fff3cd; color: #b08900; }
+      .mono { font-variant-numeric: tabular-nums; }
+      .dashed { border-top: 1px dashed #cbd5e1; }
+    </style>
+  </head>
+  <body>
 <div class="container py-4">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h1 class="h4 mb-0">🧮 Simulador de Pagos — Multipagos (Mock)</h1>
@@ -184,25 +187,39 @@
     </div>
   </form>
 </div>
-{% endblock %}
-
-{% block extra_scripts %}
-<script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
   let activeInput = null;
   function setActiveAmountInput(el){ activeInput = el; el.select(); }
   function parseNum(v){ const n = parseFloat((v||'').toString().replace(',', '.')) || 0; return Math.max(0, n); }
-  function getSaldoRestante(){ return parseNum("{{ saldo_restante }}"); }
+  function getSaldoRestante(){
+    const total = parseNum(document.querySelector('[name="total_carrito"]').value);
+    const importes = Array.from(document.querySelectorAll('input[name="importe_pago[]"]'))
+                         .map(i => parseNum(i.value));
+    const pagado = importes.reduce((a, b) => a + b, 0);
+    return total - pagado;
+  }
   function applyChip(btn, pct){
     const total = parseNum(document.querySelector('[name="total_carrito"]').value);
     if(!activeInput){ btn.closest('.row')?.querySelector('.amount-input')?.focus(); return; }
     const valor = parseFloat((total * pct).toFixed(2));
     activeInput.value = valor.toFixed(2);
+    const input = btn.closest('.row')?.querySelector('.amount-input');
+    if(!input) return;
+    activeInput = input;
+    input.focus();
+    const valor = Math.floor(total * pct);
+    activeInput.value = valor;
   }
   function applySaldo(btn){
-    if(!activeInput){ btn.closest('.row')?.querySelector('.amount-input')?.focus(); return; }
+    const input = btn.closest('.row')?.querySelector('.amount-input');
+    if(!input) return;
+    activeInput = input;
+    input.focus();
     const saldo = getSaldoRestante();
     const valor = Math.max(0, parseFloat(saldo.toFixed(2)));
     activeInput.value = valor.toFixed(2);
+    activeInput.value = Math.max(0, saldo).toFixed(2);
   }
   function keypad(key){
     if(!activeInput){ return; }
@@ -293,5 +310,6 @@
     if(sel.value === 'credito'){ cuotas.removeAttribute('disabled'); }
     else { cuotas.setAttribute('disabled',''); cuotas.value = '1'; }
   }
-</script>
-{% endblock %}
+    </script>
+  </body>
+</html>

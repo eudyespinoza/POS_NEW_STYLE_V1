@@ -120,7 +120,7 @@
                 <li class="d-flex justify-content-between"><span>Total Pagos (con imp.)</span><span class="mono">{{ total_pagado|ars }}</span></li>
                 <li class="d-flex justify-content-between">
                   <span>Saldo Restante</span>
-                  <span class="mono {% if saldo_restante>0 %}text-danger{% else %}text-success{% endif %}">{{ saldo_restante|ars }}</span>
+                  <span class="mono {% if saldo_restante > 0 %}text-danger{% else %}text-success{% endif %}">{{ saldo_restante|ars }}</span>
                 </li>
                 {% if cambio > 0 %}
                   <li class="d-flex justify-content-between text-muted"><span>Cambio</span><span class="mono">{{ cambio|ars }}</span></li>

@@ -918,7 +918,24 @@ def calcular_linea(importe: float, metodo: str, cuotas: int, promo_id: str) -> d
 
 @login_required
 def simulador_pagos(request):
-    total_carrito = 150000
+    user_id = request.session.get("email")
+    total_carrito = 0
+
+    # Intenta obtener el total del carrito guardado para el usuario
+    try:
+        if user_id:
+            cart_data = get_cart(user_id)
+            items = cart_data.get("cart", {}).get("items", [])
+            total_carrito = int(
+                sum(
+                    float(i.get("price", 0)) * float(i.get("quantity", 0))
+                    for i in items
+                    if i.get("productId")
+                )
+            )
+    except Exception:
+        total_carrito = 0
+
     sucursal = SUCURSALES[0]
 
     importes: List[float] = [75000]

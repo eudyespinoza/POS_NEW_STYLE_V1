@@ -191,7 +191,13 @@
   let activeInput = null;
   function setActiveAmountInput(el){ activeInput = el; el.select(); }
   function parseNum(v){ const n = parseFloat((v||'').toString().replace(',', '.')) || 0; return Math.max(0, n); }
-  function getSaldoRestante(){ return parseNum("{{ saldo_restante }}"); }
+  function getSaldoRestante(){
+    const total = parseNum(document.querySelector('[name="total_carrito"]').value);
+    const importes = Array.from(document.querySelectorAll('input[name="importe_pago[]"]'))
+                         .map(i => parseNum(i.value));
+    const pagado = importes.reduce((a, b) => a + b, 0);
+    return total - pagado;
+  }
   function applyChip(btn, pct){
     const total = parseNum(document.querySelector('[name="total_carrito"]').value);
     if(!activeInput){ btn.closest('.row')?.querySelector('.amount-input')?.focus(); return; }
@@ -201,7 +207,7 @@
   function applySaldo(btn){
     if(!activeInput){ btn.closest('.row')?.querySelector('.amount-input')?.focus(); return; }
     const saldo = getSaldoRestante();
-    activeInput.value = Math.max(0, Math.floor(saldo));
+    activeInput.value = Math.max(0, saldo).toFixed(2);
   }
   function keypad(key){
     if(!activeInput){ return; }

@@ -2926,13 +2926,18 @@ async function generatePdfOnly() {
 function openPaymentSimulator() {
     const totalStr = document.getElementById('cartTotalFloat')?.textContent || '0';
     const total = parseFloat(totalStr.replace(/\./g, '').replace(',', '.')) || 0;
-    toggleCart();
     const frame = document.getElementById('paymentSimulatorFrame');
     if (frame) {
         frame.src = `/simulador/?total=${total}`;
         const modalEl = document.getElementById('paymentSimulatorModal');
         const modal = new bootstrap.Modal(modalEl);
         modal.show();
+        modalEl.addEventListener('hidden.bs.modal', () => {
+            const cartOverlay = document.getElementById('cartOverlay');
+            if (cartOverlay && !cartOverlay.classList.contains('d-none')) {
+                toggleCart();
+            }
+        }, { once: true });
     } else {
         window.open(`/simulador/?total=${total}`, '_blank');
     }

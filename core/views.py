@@ -919,22 +919,23 @@ def calcular_linea(importe: float, metodo: str, cuotas: int, promo_id: str) -> d
 @login_required
 def simulador_pagos(request):
     user_id = request.session.get("email")
-    total_carrito = 0
+    total_carrito = 0.0
 
     # Intenta obtener el total del carrito guardado para el usuario
     try:
         if user_id:
             cart_data = get_cart(user_id)
             items = cart_data.get("cart", {}).get("items", [])
-            total_carrito = int(
+            total_carrito = round(
                 sum(
                     float(i.get("price", 0)) * float(i.get("quantity", 0))
                     for i in items
                     if i.get("productId")
-                )
+                ),
+                2,
             )
     except Exception:
-        total_carrito = 0
+        total_carrito = 0.0
 
     sucursal = SUCURSALES[0]
 
@@ -945,7 +946,9 @@ def simulador_pagos(request):
 
     if request.method == "POST":
         try:
-            total_carrito = int(float(request.POST.get("total_carrito", total_carrito)))
+            total_carrito = round(
+                float(request.POST.get("total_carrito", total_carrito)), 2
+            )
         except Exception:
             pass
         sucursal = request.POST.get("sucursal", sucursal)
@@ -957,7 +960,9 @@ def simulador_pagos(request):
     else:
         # Permite inicializar con total del carrito via querystring
         try:
-            total_carrito = int(float(request.GET.get("total", total_carrito)))
+            total_carrito = round(
+                float(request.GET.get("total", total_carrito)), 2
+            )
         except Exception:
             pass
 
@@ -978,8 +983,10 @@ def simulador_pagos(request):
         )
         total_pagado += r["total"]
 
-    saldo_restante = max(0.0, total_carrito - total_pagado)
-    cambio = max(0.0, total_pagado - total_carrito)
+    total_pagado = round(total_pagado, 2)
+
+    saldo_restante = round(max(0.0, total_carrito - total_pagado), 2)
+    cambio = round(max(0.0, total_pagado - total_carrito), 2)
 
     progress_pct = 0.0
     if total_carrito > 0:

@@ -201,6 +201,9 @@
   }
   function applyChip(btn, pct){
     const total = parseNum(document.querySelector('[name="total_carrito"]').value);
+    if(!activeInput){ btn.closest('.row')?.querySelector('.amount-input')?.focus(); return; }
+    const valor = parseFloat((total * pct).toFixed(2));
+    activeInput.value = valor.toFixed(2);
     const input = btn.closest('.row')?.querySelector('.amount-input');
     if(!input) return;
     activeInput = input;
@@ -214,6 +217,8 @@
     activeInput = input;
     input.focus();
     const saldo = getSaldoRestante();
+    const valor = Math.max(0, parseFloat(saldo.toFixed(2)));
+    activeInput.value = valor.toFixed(2);
     activeInput.value = Math.max(0, saldo).toFixed(2);
   }
   function keypad(key){
@@ -234,7 +239,8 @@
       const last = document.querySelectorAll('input[name="importe_pago[]"]');
       const exceso = suma - total;
       const nuevo = Math.max(0, parseNum(last[last.length-1].value) - exceso);
-      last[last.length-1].value = Math.floor(nuevo);
+      const valorAjustado = parseFloat(nuevo.toFixed(2));
+      last[last.length-1].value = valorAjustado.toFixed(2);
       setTimeout(()=>document.getElementById('form').requestSubmit(), 0);
     }
   });

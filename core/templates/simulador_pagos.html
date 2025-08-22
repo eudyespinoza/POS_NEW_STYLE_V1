@@ -194,12 +194,18 @@
   function getSaldoRestante(){ return parseNum("{{ saldo_restante }}"); }
   function applyChip(btn, pct){
     const total = parseNum(document.querySelector('[name="total_carrito"]').value);
-    if(!activeInput){ btn.closest('.row')?.querySelector('.amount-input')?.focus(); return; }
+    const input = btn.closest('.row')?.querySelector('.amount-input');
+    if(!input) return;
+    activeInput = input;
+    input.focus();
     const valor = Math.floor(total * pct);
     activeInput.value = valor;
   }
   function applySaldo(btn){
-    if(!activeInput){ btn.closest('.row')?.querySelector('.amount-input')?.focus(); return; }
+    const input = btn.closest('.row')?.querySelector('.amount-input');
+    if(!input) return;
+    activeInput = input;
+    input.focus();
     const saldo = getSaldoRestante();
     activeInput.value = Math.max(0, Math.floor(saldo));
   }

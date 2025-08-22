@@ -3879,3 +3879,46 @@ button.whatsapp-btn#whatsappBtn.fa-brands.fa-whatsapp:not(:visible)::after {
     padding: 6px 16px;
   }
 }
+
+.payment-simulator-modal {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.payment-simulator-modal .modal-dialog {
+  max-width: 900px;
+  width: 90%;
+}
+
+.payment-simulator-modal .modal-content {
+  background-color: var(--modal-bg);
+  color: var(--text-color);
+  border: 1px solid var(--input-border);
+  border-radius: 12px;
+}
+
+.payment-simulator-modal .modal-body {
+  padding: 0;
+  height: 80vh;
+}
+
+.payment-simulator-modal iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  transform: scale(0.9);
+  transform-origin: top left;
+}
+
+@media (max-width: 768px) {
+  .payment-simulator-modal .modal-dialog {
+    max-width: 100%;
+    margin: 0;
+  }
+  .payment-simulator-modal .modal-body {
+    height: 85vh;
+  }
+  .payment-simulator-modal iframe {
+    transform: scale(0.8);
+  }
+}

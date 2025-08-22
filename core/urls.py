@@ -7,6 +7,7 @@ app_name = "core"
 urlpatterns = [
     path('', views.root, name='home'),
     path('productos/', views.productos, name='productos'),
+    path('simulador/', views.simulador_pagos, name='simulador_pagos'),
 
     # APIs
     path('api/productos', views.api_productos, name='api_productos'),

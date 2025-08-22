@@ -938,10 +938,10 @@ def simulador_pagos(request):
 
     sucursal = SUCURSALES[0]
 
-    importes: List[float] = [75000]
-    metodos: List[str] = ["debito"]
-    cuotas: List[int] = [1]
-    promos: List[str] = ["PROMO_BERCO10"]
+    importes: List[float] = []
+    metodos: List[str] = []
+    cuotas: List[int] = []
+    promos: List[str] = []
 
     if request.method == "POST":
         try:

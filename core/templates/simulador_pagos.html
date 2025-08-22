@@ -1,0 +1,295 @@
+{% extends 'layout.html' %}
+{% load static %}
+{% load currency %}
+
+{% block title %}Simulador de Pagos{% endblock %}
+
+{% block extra_head %}
+<style>
+  body { background: linear-gradient(#f8fafc, #fff); }
+  .card { border-radius: 1rem; }
+  .badge-soft { background: #fff3cd; color: #b08900; }
+  .mono { font-variant-numeric: tabular-nums; }
+  .dashed { border-top: 1px dashed #cbd5e1; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">🧮 Simulador de Pagos — Multipagos (Mock)</h1>
+    <span class="badge badge-soft rounded-pill px-3 py-2">Sin backend — Solo visual</span>
+  </div>
+
+  <form method="post" id="form">
+    {% csrf_token %}
+    <div class="row g-4">
+      <!-- Columna izquierda -->
+      <div class="col-lg-8 order-lg-1">
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <h2 class="h6 text-secondary text-uppercase">Carrito & Configuración</h2>
+            <div class="row g-3 mt-1">
+              <div class="col-md-4">
+                <label class="form-label">Total Carrito (ARS)</label>
+                <input type="number" class="form-control" name="total_carrito" value="{{ total_carrito }}" min="0" />
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Sucursal</label>
+                <select class="form-select" name="sucursal">
+                  {% for s in sucursales %}
+                    <option value="{{ s }}" {% if s == sucursal %}selected{% endif %}>{{ s }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Fecha</label>
+                <input type="text" class="form-control" value="{{ ahora }}" disabled />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card shadow-sm mt-3">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <h2 class="h6 text-secondary text-uppercase">Líneas de pago</h2>
+              <button type="button" class="btn btn-sm btn-outline-primary" onclick="agregarLinea()">+ Agregar pago</button>
+            </div>
+
+            <div id="lineas" class="mt-3">
+              {% for linea in lineas %}
+                <div class="border rounded p-3 mb-3 position-relative">
+                  <div class="row g-3">
+                    <div class="col-12 col-md-3">
+                      <label class="form-label">Importe</label>
+                      <input type="number" class="form-control amount-input" name="importe_pago[]" value="{{ linea.importe }}" min="0" onfocus="setActiveAmountInput(this)" />
+                      <div class="d-flex gap-2 mt-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyChip(this, 0.25)">25%</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyChip(this, 0.50)">50%</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="applySaldo(this)">Saldo</button>
+                      </div>
+                    </div>
+                    <div class="col-12 col-md-3">
+                      <label class="form-label">Método</label>
+                      <select class="form-select metodo-select" name="metodo_pago[]" onchange="toggleCuotas(this)">
+                        {% for k,label in metodos_labels.items %}
+                          <option value="{{ k }}" {% if k == linea.metodo %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                      <label class="form-label">Cuotas</label>
+                      <select class="form-select cuotas-select" name="cuotas[]" {% if linea.metodo != 'credito' %}disabled{% endif %}>
+                        {% for c in linea.cuotas_opts %}
+                          <option value="{{ c }}" {% if c == linea.cuotas %}selected{% endif %}>{{ c }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    <div class="col-6 col-md-3">
+                      <label class="form-label">Promoción</label>
+                      <select class="form-select" name="promocion[]">
+                        {% for pid, p in promociones.items %}
+                          <option value="{{ pid }}" {% if pid == linea.promo %}selected{% endif %}>{{ pid }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    <div class="col-12 col-md-1 d-flex align-items-end">
+                      <button type="button" class="btn btn-outline-danger w-100" onclick="eliminarLinea(this)">✕</button>
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+
+            <div class="d-grid">
+              <button class="btn btn-primary" type="submit">Calcular</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Columna derecha sticky y a la derecha -->
+      <div class="col-lg-4 order-lg-2">
+        <div class="sticky-top" style="top:12px">
+          <div class="card shadow-sm">
+            <div class="card-body">
+              <h2 class="h6 text-secondary text-uppercase">Resumen del Simulador</h2>
+              <ul class="list-unstyled small mt-3">
+                <li class="d-flex justify-content-between"><span>Total Carrito</span><span class="mono">{{ total_carrito|ars }}</span></li>
+                <li class="d-flex justify-content-between"><span>Total Pagos (con imp.)</span><span class="mono">{{ total_pagado|ars }}</span></li>
+                <li class="d-flex justify-content-between">
+                  <span>Saldo Restante</span>
+                  <span class="mono {% if saldo_restante>0 %}text-danger{% else %}text-success{% endif %}">{{ saldo_restante|ars }}</span>
+                </li>
+                {% if cambio > 0 %}
+                  <li class="d-flex justify-content-between text-muted"><span>Cambio</span><span class="mono">{{ cambio|ars }}</span></li>
+                {% endif %}
+              </ul>
+              <div class="progress mb-2">
+                <div class="progress-bar" role="progressbar" style="width: {{ progress_pct|floatformat:0 }}%">
+                  {{ progress_pct|floatformat:0 }}%
+                </div>
+              </div>
+              <div class="alert alert-info py-2 mb-0 small">✨ Modo demo: cálculos por línea ilustrativos.</div>
+            </div>
+          </div>
+
+          <div class="card shadow-sm mt-3">
+            <div class="card-body">
+              <h2 class="h6 text-secondary text-uppercase">Teclado</h2>
+              <div class="row g-2 text-center">
+                {% for r in teclado_rows %}
+                  <div class="col-12 d-flex gap-2">
+                    {% for k in r %}
+                      <button type="button" class="btn btn-outline-dark flex-fill" onclick="keypad('{{ k }}')">{{ k }}</button>
+                    {% endfor %}
+                  </div>
+                {% endfor %}
+                <div class="col-12 d-flex gap-2 mt-2">
+                  <button type="button" class="btn btn-outline-secondary flex-fill" onclick="keypad(',00')">,00</button>
+                  <button type="button" class="btn btn-primary flex-fill" onclick="applyEnter()">↵ Aplicar</button>
+                </div>
+              </div>
+              <div class="form-text mt-2">Seleccioná un campo de importe y usá el teclado.</div>
+            </div>
+          </div>
+
+          <div class="card shadow-sm mt-3">
+            <div class="card-body small">
+              <h2 class="h6 text-secondary text-uppercase">Ticket</h2>
+              <div class="d-flex justify-content-between"><span>Sucursal</span><span>{{ sucursal }}</span></div>
+              <div class="d-flex justify-content-between"><span>Fecha</span><span>{{ ahora }}</span></div>
+              <hr/>
+              {% for linea in lineas %}
+                <div class="mb-2"><strong>Pago {{ forloop.counter }}</strong> — {{ linea.metodo|capfirst }}{% if linea.metodo == 'credito' and linea.cuotas > 1 %} ({{ linea.cuotas }}x){% endif %}</div>
+                <ul class="list-unstyled mono small">
+                  <li class="d-flex justify-content-between"><span>Importe</span><span>{{ linea.resultado.importe_original|ars }}</span></li>
+                  <li class="d-flex justify-content-between text-success"><span>Desc. método</span><span>- {{ linea.resultado.desc_metodo|ars }}</span></li>
+                  <li class="d-flex justify-content-between text-success"><span>Desc. promo</span><span>- {{ linea.resultado.desc_promo|ars }}</span></li>
+                  <li class="d-flex justify-content-between"><span>Intereses</span><span>{{ linea.resultado.interes|ars }}</span></li>
+                  <li class="d-flex justify-content-between"><span>IVA 21%</span><span>{{ linea.resultado.iva|ars }}</span></li>
+                  <li class="d-flex justify-content-between"><span>IIBB 3.5%</span><span>{{ linea.resultado.iibb|ars }}</span></li>
+                  <li class="d-flex justify-content-between fw-semibold"><span>Total pago</span><span>{{ linea.resultado.total|ars }}</span></li>
+                  {% if linea.cuotas > 1 %}
+                    <li class="text-end text-muted">{{ linea.cuotas }} cuotas de {{ linea.resultado.valor_cuota|ars }}</li>
+                  {% endif %}
+                </ul>
+                <div class="dashed my-2"></div>
+              {% endfor %}
+            </div>
+          </div>
+        </div> <!-- /sticky-top -->
+      </div> <!-- /col derecha -->
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  let activeInput = null;
+  function setActiveAmountInput(el){ activeInput = el; el.select(); }
+  function parseNum(v){ const n = parseFloat((v||'').toString().replace(',', '.')) || 0; return Math.max(0, n); }
+  function getSaldoRestante(){ return parseNum("{{ saldo_restante }}"); }
+  function applyChip(btn, pct){
+    const total = parseNum(document.querySelector('[name="total_carrito"]').value);
+    if(!activeInput){ btn.closest('.row')?.querySelector('.amount-input')?.focus(); return; }
+    const valor = Math.floor(total * pct);
+    activeInput.value = valor;
+  }
+  function applySaldo(btn){
+    if(!activeInput){ btn.closest('.row')?.querySelector('.amount-input')?.focus(); return; }
+    const saldo = getSaldoRestante();
+    activeInput.value = Math.max(0, Math.floor(saldo));
+  }
+  function keypad(key){
+    if(!activeInput){ return; }
+    let v = activeInput.value?.toString() || "";
+    if(key === '⌫'){ activeInput.value = v.slice(0, -1); return; }
+    if(key === ',00'){ activeInput.value = (v || '0') + '00'; return; }
+    activeInput.value = v + key;
+  }
+  function applyEnter(){ document.getElementById('form').requestSubmit(); }
+
+  document.getElementById('form').addEventListener('submit', (e) => {
+    const total = parseNum(document.querySelector('[name="total_carrito"]').value);
+    const importes = Array.from(document.querySelectorAll('input[name="importe_pago[]"]')).map(i => parseNum(i.value));
+    let suma = importes.reduce((a,b)=>a+b,0);
+    if(suma > total){
+      e.preventDefault();
+      const last = document.querySelectorAll('input[name="importe_pago[]"]');
+      const exceso = suma - total;
+      const nuevo = Math.max(0, parseNum(last[last.length-1].value) - exceso);
+      last[last.length-1].value = Math.floor(nuevo);
+      setTimeout(()=>document.getElementById('form').requestSubmit(), 0);
+    }
+  });
+
+  window.addEventListener('keydown', (ev)=>{
+    if(!activeInput) return;
+    if(ev.key === 'Enter'){ applyEnter(); }
+    if(ev.key === '1'){ applyChip(activeInput, 0.25); }
+    if(ev.key === '2'){ applyChip(activeInput, 0.50); }
+    if(ev.key === '3'){ applySaldo(activeInput); }
+  });
+
+  function agregarLinea() {
+    const cont = document.getElementById('lineas');
+    const block = document.createElement('div');
+    block.className = 'border rounded p-3 mb-3 position-relative';
+    block.innerHTML = `
+      <div class="row g-3">
+        <div class="col-12 col-md-3">
+          <label class="form-label">Importe</label>
+          <input type="number" class="form-control amount-input" name="importe_pago[]" min="0" onfocus="setActiveAmountInput(this)" />
+          <div class="d-flex gap-2 mt-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyChip(this, 0.25)">25%</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyChip(this, 0.50)">50%</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="applySaldo(this)">Saldo</button>
+          </div>
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label">Método</label>
+          <select class="form-select metodo-select" name="metodo_pago[]" onchange="toggleCuotas(this)">
+            <option value="efectivo">Efectivo</option>
+            <option value="debito">Débito</option>
+            <option value="credito">Crédito</option>
+            <option value="transferencia">Transferencia</option>
+          </select>
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label">Cuotas</label>
+          <select class="form-select cuotas-select" name="cuotas[]" disabled>
+            <option value="1">1</option>
+            <option value="3">3</option>
+            <option value="6">6</option>
+            <option value="12">12</option>
+          </select>
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label">Promoción</label>
+          <select class="form-select" name="promocion[]">
+            {% for pid, p in promociones.items %}
+              <option value="{{ pid }}">{{ pid }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-md-1 d-flex align-items-end">
+          <button type="button" class="btn btn-outline-danger w-100" onclick="eliminarLinea(this)">✕</button>
+        </div>
+      </div>`;
+    cont.appendChild(block);
+  }
+  function eliminarLinea(btn){
+    const block = btn.closest('.border.rounded');
+    block.remove();
+  }
+  function toggleCuotas(sel){
+    const wrapper = sel.closest('.row');
+    const cuotas = wrapper.querySelector('.cuotas-select');
+    if(sel.value === 'credito'){ cuotas.removeAttribute('disabled'); }
+    else { cuotas.setAttribute('disabled',''); cuotas.value = '1'; }
+  }
+</script>
+{% endblock %}

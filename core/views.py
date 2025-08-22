@@ -4,6 +4,7 @@ import json
 import logging
 import datetime
 from datetime import timezone, timedelta
+from typing import List, Dict
 
 from django.conf import settings
 from django.shortcuts import render, redirect
@@ -824,3 +825,168 @@ def api_get_user_cart(request):
     except Exception as e:
         logger.exception("api_get_user_cart")
         return JsonResponse({"error": str(e)}, status=500)
+
+
+# ======== Simulador de Pagos ========
+REGLAS = {
+    "impuestos": {"iva": 0.21, "iibb": 0.035},
+    "metodos": {
+        "efectivo": {"descuento": 0.10, "interes": 0.00},
+        "debito": {"descuento": 0.05, "interes": 0.00},
+        "credito": {"descuento": 0.00, "interes": 0.04},
+        "transferencia": {"descuento": 0.06, "interes": 0.00},
+    },
+    "promociones": {
+        "PROMO_BERCO10": {
+            "tipo": "porcentaje",
+            "valor": 0.10,
+            "aplica": ["efectivo", "debito", "transferencia"],
+        },
+        "BNCO_3CUOTAS": {
+            "tipo": "interes_subsidiado",
+            "valor": -0.02,
+            "aplica": ["credito"],
+        },
+        "SIN_PROMO": {
+            "tipo": "ninguna",
+            "valor": 0.00,
+            "aplica": ["efectivo", "debito", "credito", "transferencia"],
+        },
+    },
+}
+
+SUCURSALES = ["Posadas", "Oberá", "Iguazú", "Resistencia"]
+
+METODOS_LABELS = {
+    "efectivo": "Efectivo",
+    "debito": "Débito",
+    "credito": "Crédito",
+    "transferencia": "Transferencia",
+}
+
+TECLADO_ROWS = [["7", "8", "9"], ["4", "5", "6"], ["1", "2", "3"], ["00", "0", "⌫"]]
+
+
+def calcular_linea(importe: float, metodo: str, cuotas: int, promo_id: str) -> dict:
+    base = max(0.0, float(importe or 0.0))
+
+    regla_metodo = REGLAS["metodos"].get(metodo, {"descuento": 0.0, "interes": 0.0})
+    desc_metodo = base * regla_metodo["descuento"]
+
+    promo = REGLAS["promociones"].get(promo_id)
+    promo_aplica = bool(promo and metodo in promo.get("aplica", []))
+    desc_promo = 0.0
+    if promo_aplica and promo.get("tipo") == "porcentaje":
+        desc_promo = (base - desc_metodo) * promo.get("valor", 0.0)
+
+    subtotal_desc = base - desc_metodo - desc_promo
+
+    interes = 0.0
+    if metodo == "credito":
+        tramos3 = max(0, (cuotas - 1 + 2) // 3)
+        interes_base = regla_metodo.get("interes", 0.0) * tramos3
+        ajuste_promo = (
+            promo.get("valor", 0.0)
+            if (promo_aplica and promo.get("tipo") == "interes_subsidiado")
+            else 0.0
+        )
+        tasa = max(0.0, interes_base + ajuste_promo)
+        interes = subtotal_desc * tasa
+
+    neto_antes_imp = subtotal_desc + interes
+
+    iva = neto_antes_imp * REGLAS["impuestos"]["iva"]
+    iibb = neto_antes_imp * REGLAS["impuestos"]["iibb"]
+    impuestos = iva + iibb
+
+    total = neto_antes_imp + impuestos
+    valor_cuota = total / max(1, cuotas)
+
+    return {
+        "importe_original": base,
+        "desc_metodo": desc_metodo,
+        "desc_promo": desc_promo,
+        "subtotal_desc": subtotal_desc,
+        "interes": interes,
+        "iva": iva,
+        "iibb": iibb,
+        "impuestos": impuestos,
+        "total": total,
+        "valor_cuota": valor_cuota,
+    }
+
+
+@login_required
+def simulador_pagos(request):
+    total_carrito = 150000
+    sucursal = SUCURSALES[0]
+
+    importes: List[float] = [75000]
+    metodos: List[str] = ["debito"]
+    cuotas: List[int] = [1]
+    promos: List[str] = ["PROMO_BERCO10"]
+
+    if request.method == "POST":
+        try:
+            total_carrito = int(float(request.POST.get("total_carrito", total_carrito)))
+        except Exception:
+            pass
+        sucursal = request.POST.get("sucursal", sucursal)
+
+        importes = [float(x) if x else 0 for x in request.POST.getlist("importe_pago[]")] or importes
+        metodos = request.POST.getlist("metodo_pago[]") or metodos
+        cuotas = [int(x) if x else 1 for x in request.POST.getlist("cuotas[]")] or cuotas
+        promos = request.POST.getlist("promocion[]") or promos
+    else:
+        # Permite inicializar con total del carrito via querystring
+        try:
+            total_carrito = int(float(request.GET.get("total", total_carrito)))
+        except Exception:
+            pass
+
+    lineas = []
+    total_pagado = 0.0
+    for imp, met, c, pr in zip(importes, metodos, cuotas, promos):
+        c = c if met == "credito" else 1
+        r = calcular_linea(imp, met, c, pr)
+        lineas.append(
+            {
+                "importe": imp,
+                "metodo": met,
+                "cuotas": c,
+                "promo": pr,
+                "cuotas_opts": [1] if met != "credito" else [1, 3, 6, 12],
+                "resultado": r,
+            }
+        )
+        total_pagado += r["total"]
+
+    saldo_restante = max(0.0, total_carrito - total_pagado)
+    cambio = max(0.0, total_pagado - total_carrito)
+
+    progress_pct = 0.0
+    if total_carrito > 0:
+        progress_pct = (
+            (total_pagado if total_pagado < total_carrito else total_carrito)
+            / total_carrito
+            * 100.0
+        )
+
+    return render(
+        request,
+        "simulador_pagos.html",
+        {
+            "sucursales": SUCURSALES,
+            "sucursal": sucursal,
+            "promociones": REGLAS["promociones"],
+            "total_carrito": total_carrito,
+            "lineas": lineas,
+            "metodos_labels": METODOS_LABELS,
+            "total_pagado": total_pagado,
+            "saldo_restante": saldo_restante,
+            "cambio": cambio,
+            "progress_pct": progress_pct,
+            "ahora": datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+            "teclado_rows": TECLADO_ROWS,
+        },
+    )

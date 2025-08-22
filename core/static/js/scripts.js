@@ -2923,6 +2923,12 @@ async function generatePdfOnly() {
     }
 }
 
+function openPaymentSimulator() {
+    const totalStr = document.getElementById('cartTotalFloat')?.textContent || '0';
+    const total = parseFloat(totalStr.replace(/\./g, '').replace(',', '.')) || 0;
+    window.open(`/simulador/?total=${total}`, '_blank');
+}
+
 function toggleCartButtonDetails() {
     const cartButton = document.querySelector('.cart-float-btn');
     cartButton.classList.toggle('expanded');

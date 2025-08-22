@@ -490,6 +490,10 @@ async function displayProducts(products) {
     const productList = document.getElementById("productList");
     const cardView = document.getElementById("cardView");
 
+    if (!productList || !cardView) {
+        return;
+    }
+
     productList.innerHTML = "";
     cardView.innerHTML = "";
 
@@ -511,7 +515,7 @@ async function displayProducts(products) {
     const endIndex = startIndex + ITEMS_PER_PAGE;
     const pageProducts = products.slice(startIndex, endIndex);
 
-    const isTableView = !document.getElementById("tableView").classList.contains("d-none");
+    const isTableView = !document.getElementById("tableView")?.classList.contains("d-none");
 
     if (isTableView) {
         const fragment = document.createDocumentFragment();
@@ -593,6 +597,7 @@ function changePage(page) {
 
 async function actualizarTabla(productos) {
     const productList = document.getElementById("productList");
+    if (!productList) return;
     productList.innerHTML = ""; // 🔹 Limpiar tabla antes de insertar
 
     if (!productos.length) {
@@ -729,23 +734,24 @@ function normalizeText(text = "") {
 }
 
 function filterProducts() {
-    const searchTerms = document.getElementById('search').value
+    const searchField = document.getElementById('search');
+    const searchTerms = searchField ? searchField.value
         .trim()
         .toLowerCase()
         .split(' ')
-        .filter(term => term.length > 0);
+        .filter(term => term.length > 0) : [];
 
-    const category = document.getElementById("categoryFilter").value;
-    const coverage = document.getElementById("coverageGroupFilter").value;
-    const store = document.getElementById("storeFilter").value;
-    const excludeSpecial = document.getElementById("excludeSpecialCategories").checked;
-    const minPrice = parseFloat(document.getElementById("minPrice").value) || 0;
-    const maxPrice = parseFloat(document.getElementById("maxPrice").value) || Infinity;
+    const category = document.getElementById("categoryFilter")?.value || "";
+    const coverage = document.getElementById("coverageGroupFilter")?.value || "";
+    const store = document.getElementById("storeFilter")?.value || getLastStore();
+    const excludeSpecial = document.getElementById("excludeSpecialCategories")?.checked || false;
+    const minPrice = parseFloat(document.getElementById("minPrice")?.value) || 0;
+    const maxPrice = parseFloat(document.getElementById("maxPrice")?.value) || Infinity;
 
     // Nuevos filtros de stock
-    const signoMas = document.getElementById("signoMas").checked;
-    const signoMenos = document.getElementById("signoMenos").checked;
-    const signoCero = document.getElementById("cero").checked;
+    const signoMas = document.getElementById("signoMas")?.checked;
+    const signoMenos = document.getElementById("signoMenos")?.checked;
+    const signoCero = document.getElementById("cero")?.checked;
 
     const excludeWords = ["outlet", "outle", "2da", "saldo", "lote", "@", "//", "pedido", "outl"];
 
@@ -801,8 +807,10 @@ function filterAndPaginate(withSpinner = false, resetPage = true) {
     if (resetPage) {
         currentPage = 1;
     }
-    document.getElementById("productList").innerHTML = "";
-    document.getElementById("cardView").innerHTML = "";
+    const productListEl = document.getElementById("productList");
+    const cardViewEl = document.getElementById("cardView");
+    if (productListEl) productListEl.innerHTML = "";
+    if (cardViewEl) cardViewEl.innerHTML = "";
     filteredProducts = [];
     try {
         filteredProducts = filterProducts();
@@ -810,25 +818,35 @@ function filterAndPaginate(withSpinner = false, resetPage = true) {
     } catch (error) {
         console.error("Error en filterAndPaginate:", error);
         filteredProducts = [];
-        document.getElementById("productList").innerHTML = `<tr><td colspan="10" class="text-center text-danger">Error al filtrar productos. Intenta de nuevo.</td></tr>`;
-        document.getElementById("cardView").innerHTML = `<p class="text-center text-danger">Error al filtrar productos. Intenta de nuevo.</p>`;
+        if (productListEl) productListEl.innerHTML = `<tr><td colspan="10" class="text-center text-danger">Error al filtrar productos. Intenta de nuevo.</td></tr>`;
+        if (cardViewEl) cardViewEl.innerHTML = `<p class="text-center text-danger">Error al filtrar productos. Intenta de nuevo.</p>`;
         updatePagination(0);
     }
     if (withSpinner) hideSpinner();
 }
 
 function clearFilters() {
-    document.getElementById('search').value = '';
-    document.getElementById('categoryFilter').value = '';
-    document.getElementById('coverageGroupFilter').value = '';
-    document.getElementById('excludeSpecialCategories').checked = true;
-    document.getElementById("priceRangeFilter").value = "";
-    document.getElementById("minPrice").value = "";
-    document.getElementById("maxPrice").value = "";
+    const search = document.getElementById('search');
+    if (search) search.value = '';
+    const category = document.getElementById('categoryFilter');
+    if (category) category.value = '';
+    const coverage = document.getElementById('coverageGroupFilter');
+    if (coverage) coverage.value = '';
+    const exclude = document.getElementById('excludeSpecialCategories');
+    if (exclude) exclude.checked = true;
+    const priceRange = document.getElementById("priceRangeFilter");
+    if (priceRange) priceRange.value = "";
+    const minPriceEl = document.getElementById("minPrice");
+    if (minPriceEl) minPriceEl.value = "";
+    const maxPriceEl = document.getElementById("maxPrice");
+    if (maxPriceEl) maxPriceEl.value = "";
     // Reiniciar filtros de stock
-    document.getElementById("signoMas").checked = true;
-    document.getElementById("signoMenos").checked = true;
-    document.getElementById("cero").checked = true;
+    const signoMasEl = document.getElementById("signoMas");
+    if (signoMasEl) signoMasEl.checked = true;
+    const signoMenosEl = document.getElementById("signoMenos");
+    if (signoMenosEl) signoMenosEl.checked = true;
+    const signoCeroEl = document.getElementById("cero");
+    if (signoCeroEl) signoCeroEl.checked = true;
 
     currentPage = 1;
     filterAndPaginate();
@@ -1004,19 +1022,25 @@ document.addEventListener("DOMContentLoaded", function () {
     setInterval(checkProductsUpdate, 300000);
 
     let debounceTimeout;
-    document.getElementById('search').addEventListener('input', () => {
-        const busqueda = document.getElementById('search').value;
-        clearTimeout(debounceTimeout);
-        debounceTimeout = setTimeout(() => {
-            if (busqueda.length >= 3 || busqueda.length === 0) {
-                filterAndPaginate(false);
-            }
-        }, 300);
-    });
+    const searchInput = document.getElementById('search');
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            const busqueda = searchInput.value;
+            clearTimeout(debounceTimeout);
+            debounceTimeout = setTimeout(() => {
+                if (busqueda.length >= 3 || busqueda.length === 0) {
+                    filterAndPaginate(false);
+                }
+            }, 300);
+        });
+    }
 
-    document.getElementById('categoryFilter').addEventListener('change', filterAndPaginate);
-    document.getElementById('coverageGroupFilter').addEventListener('change', filterAndPaginate);
-    document.getElementById('excludeSpecialCategories').addEventListener('change', filterAndPaginate);
+    const categoryFilter = document.getElementById('categoryFilter');
+    if (categoryFilter) categoryFilter.addEventListener('change', filterAndPaginate);
+    const coverageGroupFilter = document.getElementById('coverageGroupFilter');
+    if (coverageGroupFilter) coverageGroupFilter.addEventListener('change', filterAndPaginate);
+    const excludeSpecialCategories = document.getElementById('excludeSpecialCategories');
+    if (excludeSpecialCategories) excludeSpecialCategories.addEventListener('change', filterAndPaginate);
 });
 
 // Inicialización de toasts de Bootstrap (si aplica)
@@ -1312,30 +1336,24 @@ function sanitizeText(text) {
 }
 
 document.addEventListener("DOMContentLoaded", function () {
-
-
     const observationsInput = document.getElementById("cartObservations");
     if (observationsInput) {
-        observationsInput.addEventListener("input", function () {
-            cartObservations = sanitizeText(this.value); // Actualizar la variable global
-            this.value = cartObservations; // Reflejar el valor sanitizado en el campo
+        observationsInput.addEventListener("input", function (e) {
+            cartObservations = sanitizeText(e.target.value);
+            e.target.value = cartObservations;
+            cart.observations = cartObservations;
+            const timestamp = new Date().toISOString();
+            getUserId().then(userId => {
+                Promise.all([
+                    saveCartToIndexedDB(userId, cart, timestamp),
+                    syncCartWithBackend(userId, cart, timestamp)
+                ]).catch(error => {
+                    console.error('Error al guardar observaciones:', error);
+                    showToast('danger', 'Error al guardar observaciones');
+                });
+            });
         });
     }
-});
-
-document.getElementById('cartObservations').addEventListener('input', (e) => {
-    cartObservations = e.target.value;
-    cart.observations = cartObservations;
-    const timestamp = new Date().toISOString();
-    getUserId().then(userId => {
-        Promise.all([
-            saveCartToIndexedDB(userId, cart, timestamp),
-            syncCartWithBackend(userId, cart, timestamp)
-        ]).catch(error => {
-            console.error('Error al guardar observaciones:', error);
-            showToast('danger', 'Error al guardar observaciones');
-        });
-    });
 });
 
 async function updateCartPrices(storeId) {
@@ -2059,7 +2077,8 @@ function clearCart() {
         observations: ''
     };
     cartObservations = '';
-    document.getElementById("cartObservations").value = '';
+    const obsInputReset = document.getElementById("cartObservations");
+    if (obsInputReset) obsInputReset.value = '';
     const timestamp = new Date().toISOString();
     getUserId().then(userId => {
         Promise.all([
@@ -2249,7 +2268,8 @@ function closePrintModal(print) {
         generatePDF().then(() => {
             // Limpiar carrito y observaciones después de generar el PDF
             cartObservations = "";
-            document.getElementById("cartObservations").value = "";
+            const obsInput = document.getElementById("cartObservations");
+            if (obsInput) obsInput.value = "";
             delete cart.quotation_id;
             delete cart.type;
             clearCart();
@@ -2279,7 +2299,8 @@ function closePrintModal(print) {
 
             // Limpiar carrito y observaciones incluso si falla la generación del PDF
             cartObservations = "";
-            document.getElementById("cartObservations").value = "";
+            const obsInput = document.getElementById("cartObservations");
+            if (obsInput) obsInput.value = "";
             delete cart.quotation_id;
             delete cart.type;
             clearCart();
@@ -2307,7 +2328,8 @@ function closePrintModal(print) {
     } else {
         // Limpiar carrito y observaciones si el usuario no imprime
         cartObservations = "";
-        document.getElementById("cartObservations").value = "";
+        const obsInput = document.getElementById("cartObservations");
+        if (obsInput) obsInput.value = "";
         delete cart.quotation_id;
         delete cart.type;
         clearCart();
@@ -2337,6 +2359,7 @@ function closePrintModal(print) {
 // Función para mostrar toast
 function showToast(type, message) {
     const toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) return;
     const toast = document.createElement('div');
     toast.className = `toast align-items-center text-bg-${type} border-0`;
     toast.role = 'alert';
@@ -2916,7 +2939,8 @@ async function generatePdfOnly() {
         await generatePDF();
 
         cartObservations = "";
-        document.getElementById("cartObservations").value = "";
+        const obsInput = document.getElementById("cartObservations");
+        if (obsInput) obsInput.value = "";
         delete cart.quotation_id;
         delete cart.type;
         clearCart();
@@ -4108,7 +4132,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (localData && localData.cart) {
                 cart = localData.cart;
                 cartObservations = cart.observations || '';
-                document.getElementById("cartObservations").value = cartObservations;
+                const obsInput = document.getElementById("cartObservations");
+                if (obsInput) obsInput.value = cartObservations;
                 updateCartDisplay();
             }
             return;
@@ -4136,7 +4161,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         cartObservations = cart.observations || '';
-        document.getElementById("cartObservations").value = cartObservations;
+        const obsInput = document.getElementById("cartObservations");
+        if (obsInput) obsInput.value = cartObservations;
         updateCartDisplay();
     } catch (error) {
         console.error('Error al inicializar el carrito:', error);
@@ -4144,7 +4170,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Usar carrito vacío como última opción
         cart = { items: [], client: null, quotation_id: null, type: 'new', observations: '' };
         cartObservations = '';
-        document.getElementById("cartObservations").value = cartObservations;
+        const obsInputFallback = document.getElementById("cartObservations");
+        if (obsInputFallback) obsInputFallback.value = cartObservations;
         updateCartDisplay();
     }
 });

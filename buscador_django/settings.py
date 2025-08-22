@@ -9,6 +9,9 @@ DEBUG = os.environ.get('DJANGO_DEBUG', '1') == '1'
 
 ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '').split() if not DEBUG else []
 
+# Controla si el sitio puede ser embebido en iframes
+X_FRAME_OPTIONS = 'SAMEORIGIN'
+
 # Apps
 INSTALLED_APPS = [
     'django.contrib.admin',

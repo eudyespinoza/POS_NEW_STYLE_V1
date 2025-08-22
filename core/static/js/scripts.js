@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const body = document.body;
 
   if (!themeToggleBtn) {
-    console.error('Error: No se encontró el elemento themeToggleBtn');
+    console.warn('Elemento themeToggleBtn no encontrado; se omite cambio de tema.');
     return;
   }
 
@@ -99,6 +99,27 @@ const DB_NAME = 'CartDB';
 const DB_VERSION = 1;
 const CART_STORE = 'carts';
 
+function getLastStore() {
+    if (typeof window.lastStore !== 'undefined' && window.lastStore) {
+        return window.lastStore;
+    }
+    if (typeof lastStore !== 'undefined' && lastStore) {
+        return lastStore;
+    }
+    const el = document.getElementById('backend-last-store-data');
+    if (el) {
+        try {
+            const parsed = JSON.parse(el.textContent || 'null');
+            if (parsed) {
+                return parsed;
+            }
+        } catch (e) {
+            console.warn('No se pudo parsear backend-last-store-data:', e);
+        }
+    }
+    return 'BA001GC';
+}
+
 async function checkProductsUpdate() {
     try {
         const data = await fetchWithAuth('/api/check_products_update');
@@ -106,7 +127,7 @@ async function checkProductsUpdate() {
 
         if (newLastModified > lastProductsUpdate) {
             lastProductsUpdate = newLastModified;
-            const storeId = document.getElementById("storeFilter").value || lastStore || 'BA001GC';
+            const storeId = document.getElementById("storeFilter").value || getLastStore();
             await loadProducts(storeId, 1, 20000, false, false);
         }
     } catch (error) {
@@ -965,7 +986,7 @@ async function loadProducts(storeId, page = 1, itemsPerPage = 20000, showSpinner
  ***************************************/
 document.addEventListener("DOMContentLoaded", function () {
     showSpinner();
-    const initialStore = lastStore || 'BA001GC';
+    const initialStore = getLastStore();
     loadProducts(initialStore);
 
     const storeFilterElement = document.getElementById('storeFilter');
@@ -975,6 +996,7 @@ document.addEventListener("DOMContentLoaded", function () {
             const selectedStore = this.value;
             loadProducts(selectedStore);
             updateLastStore(selectedStore);
+            window.lastStore = selectedStore;
         });
     }
 
@@ -3257,7 +3279,7 @@ function handleScanResult(code) {
     }
 
     // Obtener la tienda seleccionada
-    const selectedStore = document.getElementById("storeFilter").value || lastStore || 'BA001GC';
+    const selectedStore = document.getElementById("storeFilter").value || getLastStore();
 
     // Buscar el producto en la tienda seleccionada y abrir el modal de cantidad
     fetch(`/api/productos/by_code?code=${encodeURIComponent(productCode)}&store=${encodeURIComponent(selectedStore)}`)
@@ -3400,7 +3422,7 @@ async function searchQuotations() {
             }
 
             showSpinner();
-            const store = document.getElementById("storeFilter").value || lastStore || 'BA001GC';
+            const store = document.getElementById("storeFilter").value || getLastStore();
             const response = await fetch(`/api/d365_quotation/${query}?store=${store}`);
             hideSpinner();
 
@@ -3475,7 +3497,7 @@ document.addEventListener("DOMContentLoaded", function () {
 async function loadQuotation(quotationId, type) {
     try {
         showSpinner();
-        const store = document.getElementById("storeFilter").value || lastStore || 'BA001GC';
+        const store = document.getElementById("storeFilter").value || getLastStore();
         const url = type === 'local' ? `/api/local_quotation/${quotationId}` : `/api/d365_quotation/${quotationId}?store=${store}`;
 
         const response = await fetch(url);

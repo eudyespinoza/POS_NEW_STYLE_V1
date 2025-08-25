@@ -2,7 +2,7 @@ import requests
 import configparser
 import os
 import logging
-from flask import jsonify
+from django.http import JsonResponse
 
 # Obtén la ruta absoluta a la raíz del proyecto
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -22,6 +22,15 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
+
+
+class TokenRetrievalError(Exception):
+    """Error raised when D365 access token retrieval fails."""
+
+    def __init__(self, message: str = "No se pudo obtener la secuencia") -> None:
+        # Provide a JsonResponse for potential HTTP contexts
+        self.response = JsonResponse({"error": message}, status=500)
+        super().__init__(message)
 
 def load_d365_config():
 
@@ -65,7 +74,7 @@ def get_access_token_d365():
 
     except requests.RequestException as e:
         logging.error(f"Consulta token a D365 FALLO. {e}")
-        return jsonify({'error': 'No se pudo obtener la secuencia'}), 500
+        raise TokenRetrievalError() from e
 
 
 def get_access_token_d365_qa():
@@ -93,4 +102,4 @@ def get_access_token_d365_qa():
 
     except requests.RequestException as e:
         logging.error(f"Consulta token a D365 FALLO. {e}")
-        return jsonify({'error': 'No se pudo obtener la secuencia'}), 500
+        raise TokenRetrievalError() from e

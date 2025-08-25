@@ -2,6 +2,7 @@ import requests
 import configparser
 import os
 import logging
+from flask import jsonify
 
 # Obtén la ruta absoluta a la raíz del proyecto
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -62,10 +63,9 @@ def get_access_token_d365():
         logging.info(f"Consulta token a D365 OK")
         return access_token
 
-    except requests.exceptions.RequestException as e:
-        logging.info(f"Consulta token a D365 FALLO. {e}")
-        print("Error al obtener el token de acceso:", e)
-        return None
+    except requests.RequestException as e:
+        logging.error(f"Consulta token a D365 FALLO. {e}")
+        return jsonify({'error': 'No se pudo obtener la secuencia'}), 500
 
 
 def get_access_token_d365_qa():
@@ -91,6 +91,6 @@ def get_access_token_d365_qa():
         logging.info(f"Consulta token a D365 OK")
         return access_token
 
-    except requests.exceptions.RequestException as e:
-        logging.info(f"Consulta token a D365 FALLO. {e}")
-        return None
+    except requests.RequestException as e:
+        logging.error(f"Consulta token a D365 FALLO. {e}")
+        return jsonify({'error': 'No se pudo obtener la secuencia'}), 500

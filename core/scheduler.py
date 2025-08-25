@@ -32,7 +32,7 @@ from services.fabric import (
     obtener_grupos_cumplimiento_fabric,
 )
 
-from services.get_token import get_access_token_d365
+from services.get_token import get_access_token_d365, TokenRetrievalError
 from services.database import guardar_token_d365
 from services.email_service import enviar_correo_fallo
 
@@ -170,9 +170,14 @@ def _run_step_chain(nombre: str, *fn_chain):
 
 def actualizar_token_d365():
     """Obtiene y persiste el token D365."""
-    token = get_access_token_d365()
+    try:
+        token = get_access_token_d365()
+    except TokenRetrievalError as exc:
+        logger.error(f"{FAIL} get_access_token_d365 falló: {exc}")
+        return
     if not token:
-        raise RuntimeError("No se pudo obtener token D365")
+        logger.error(f"{FAIL} No se pudo obtener token D365")
+        return
     guardar_token_d365(token)
     logger.info("Token D365 actualizado por bootstrap/cron.")
 

@@ -1134,28 +1134,38 @@ async function buscarStock(event, productoNombre, productoId, unidadMedida, stor
 }
 
 function convertirMonedaANumero(valor) {
-    if (valor === null || valor === undefined) {
-        console.warn(`Valor no válido para convertirMonedaANumero: ${valor}`);
-        return 0;
+  if (valor === null || valor === undefined) return 0;
+
+  // Si ya es número, devolverlo redondeado
+  if (typeof valor === 'number' && Number.isFinite(valor)) {
+    return parseFloat(valor.toFixed(2));
+  }
+
+  try {
+    let s = valor.toString().trim();
+
+    // Normalizar "menos" unicode a '-'
+    s = s.replace(/\u2212/g, '-');
+
+    // Conservar dígitos, separadores y el '-' inicial
+    s = s.replace(/[^0-9,.\-]/g, ''); // ahora no borra el signo
+    s = s.replace(/(?!^)-/g, '');     // si hubiera guiones en el medio, dejamos solo el inicial
+
+    // es-AR: '.' miles, ',' decimales
+    if (s.includes(',') && s.includes('.')) {
+      // "1.234,56" -> "1234.56"
+      s = s.replace(/\./g, '').replace(',', '.');
+    } else if (s.includes(',')) {
+      s = s.replace(',', '.');
     }
-    if (typeof valor === 'number') {
-        return parseFloat(valor.toFixed(2));
-    }
-    try {
-        let numeroStr = valor.toString().trim();
-        numeroStr = numeroStr.replace(/[^0-9,.]/g, '');
-        numeroStr = numeroStr.replace(/\./g, "").replace(",", ".");
-        const numero = parseFloat(numeroStr);
-        if (isNaN(numero)) {
-            console.warn(`No se pudo convertir a número: ${valor} -> ${numeroStr}`);
-            return 0;
-        }
-        return parseFloat(numero.toFixed(2));
-    } catch (error) {
-        console.warn(`Error al convertir moneda: ${valor}`, error);
-        return 0;
-    }
+
+    const num = parseFloat(s);
+    return isNaN(num) ? 0 : parseFloat(num.toFixed(2));
+  } catch {
+    return 0;
+  }
 }
+
 
 function formatearMoneda(valor) {
     if (typeof valor !== 'number' || isNaN(valor)) {

@@ -33,7 +33,7 @@
             <div class="row g-3 mt-1">
               <div class="col-md-4">
                 <label class="form-label">Total Carrito (ARS)</label>
-                <input type="number" class="form-control" name="total_carrito" value="{{ total_carrito }}" min="0" />
+                <input type="number" class="form-control" name="total_carrito" value="{{ total_carrito|floatformat:2 }}" step="0.01" min="0" />
               </div>
               <div class="col-md-4">
                 <label class="form-label">Sucursal</label>

@@ -3025,12 +3025,6 @@ function openPaymentSimulator() {
         const modalEl = document.getElementById('paymentSimulatorModal');
         const modal = new bootstrap.Modal(modalEl);
         modal.show();
-        modalEl.addEventListener('hidden.bs.modal', () => {
-            const cartOverlay = document.getElementById('cartOverlay');
-            if (cartOverlay && !cartOverlay.classList.contains('d-none')) {
-                toggleCart();
-            }
-        }, { once: true });
     } else {
         window.open(`/simulador/?total=${total}`, '_blank');
     }

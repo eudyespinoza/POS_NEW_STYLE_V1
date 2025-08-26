@@ -1,0 +1,37 @@
+{% extends 'layout.html' %}
+{% block title %}Secuencias{% endblock %}
+{% block content %}
+<div class="container">
+  <h1 class="mb-4">Secuencias</h1>
+  <a href="{% url 'core:secuencias_create' %}" class="btn btn-primary mb-3">Nueva Secuencia</a>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>Prefijo</th>
+        <th>Valor actual</th>
+        <th>Incremento</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for sec in secuencias %}
+      <tr>
+        <td>{{ sec.nombre }}</td>
+        <td>{{ sec.prefijo }}</td>
+        <td>{{ sec.valor_actual }}</td>
+        <td>{{ sec.incremento }}</td>
+        <td>
+          <a href="{% url 'core:secuencias_update' sec.pk %}" class="btn btn-sm btn-warning">Editar</a>
+          <a href="{% url 'core:secuencias_delete' sec.pk %}" class="btn btn-sm btn-danger">Eliminar</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="5">No hay secuencias registradas.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

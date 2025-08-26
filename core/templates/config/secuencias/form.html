@@ -1,0 +1,28 @@
+{% extends 'layout.html' %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="container">
+  <h1 class="mb-4">{{ title }}</h1>
+  <form method="post">
+    {% csrf_token %}
+    <div class="mb-3">
+      {{ form.nombre.label_tag }}
+      {{ form.nombre }}
+    </div>
+    <div class="mb-3">
+      {{ form.prefijo.label_tag }}
+      {{ form.prefijo }}
+    </div>
+    <div class="mb-3">
+      {{ form.valor_actual.label_tag }}
+      {{ form.valor_actual }}
+    </div>
+    <div class="mb-3">
+      {{ form.incremento.label_tag }}
+      {{ form.incremento }}
+    </div>
+    <button type="submit" class="btn btn-primary">Guardar</button>
+    <a href="{% url 'core:secuencias_list' %}" class="btn btn-secondary">Cancelar</a>
+  </form>
+</div>
+{% endblock %}

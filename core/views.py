@@ -7,12 +7,13 @@ from datetime import timezone, timedelta
 from typing import List, Dict
 
 from django.conf import settings
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_GET, require_POST
 from django.views.decorators.csrf import csrf_exempt
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, permission_required
 from django.urls import reverse
+from django import forms
 
 import pyarrow.compute as pc
 
@@ -54,7 +55,15 @@ from .scheduler import (
     load_parquet_atributos,
 )
 
+from .models import SecuenciaNumerica
+
 logger = logging.getLogger(__name__)
+
+
+class SecuenciaNumericaForm(forms.ModelForm):
+    class Meta:
+        model = SecuenciaNumerica
+        fields = ["nombre", "prefijo", "valor_actual", "incremento"]
 
 # ======== Raíz ========
 @login_required
@@ -1013,4 +1022,64 @@ def simulador_pagos(request):
             "ahora": datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
             "teclado_rows": TECLADO_ROWS,
         },
+    )
+
+
+@login_required
+@permission_required("core.view_secuencianumerica", raise_exception=True)
+def secuencias_list(request):
+    secuencias = SecuenciaNumerica.objects.all()
+    return render(
+        request,
+        "config/secuencias/list.html",
+        {"secuencias": secuencias},
+    )
+
+
+@login_required
+@permission_required("core.add_secuencianumerica", raise_exception=True)
+def secuencias_create(request):
+    if request.method == "POST":
+        form = SecuenciaNumericaForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect("core:secuencias_list")
+    else:
+        form = SecuenciaNumericaForm()
+    return render(
+        request,
+        "config/secuencias/form.html",
+        {"form": form, "title": "Crear secuencia"},
+    )
+
+
+@login_required
+@permission_required("core.change_secuencianumerica", raise_exception=True)
+def secuencias_update(request, pk):
+    secuencia = get_object_or_404(SecuenciaNumerica, pk=pk)
+    if request.method == "POST":
+        form = SecuenciaNumericaForm(request.POST, instance=secuencia)
+        if form.is_valid():
+            form.save()
+            return redirect("core:secuencias_list")
+    else:
+        form = SecuenciaNumericaForm(instance=secuencia)
+    return render(
+        request,
+        "config/secuencias/form.html",
+        {"form": form, "title": "Editar secuencia"},
+    )
+
+
+@login_required
+@permission_required("core.delete_secuencianumerica", raise_exception=True)
+def secuencias_delete(request, pk):
+    secuencia = get_object_or_404(SecuenciaNumerica, pk=pk)
+    if request.method == "POST":
+        secuencia.delete()
+        return redirect("core:secuencias_list")
+    return render(
+        request,
+        "config/secuencias/confirm_delete.html",
+        {"secuencia": secuencia},
     )

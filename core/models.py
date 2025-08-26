@@ -31,3 +31,17 @@ class Rol(models.Model):
 
     def __str__(self):
         return f"{self.empleado_id} - {self.rol}"
+
+
+class SecuenciaNumerica(models.Model):
+    nombre = models.CharField(max_length=100, unique=True)
+    prefijo = models.CharField(max_length=20, blank=True)
+    valor_actual = models.PositiveIntegerField(default=0)
+    incremento = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        verbose_name = "Secuencia numérica"
+        verbose_name_plural = "Secuencias numéricas"
+
+    def __str__(self):
+        return f"{self.prefijo}{self.valor_actual}"

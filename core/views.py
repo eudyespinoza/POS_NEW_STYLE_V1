@@ -11,6 +11,9 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_GET, require_POST
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.decorators import login_required, permission_required
+from django.urls import reverse
+from django import forms
 from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
 from django.urls import reverse
@@ -63,9 +66,15 @@ from .scheduler import (
     load_parquet_atributos,
 )
 
+from .models import SecuenciaNumerica
+
 logger = logging.getLogger(__name__)
 
 
+class SecuenciaNumericaForm(forms.ModelForm):
+    class Meta:
+        model = SecuenciaNumerica
+        fields = ["nombre", "prefijo", "valor_actual", "incremento"]
 # ======== Config: Tipos de contribuyente ========
 @staff_member_required
 def tipos_contribuyente_list(request):
@@ -1076,6 +1085,14 @@ def simulador_pagos(request):
     )
 
 
+@login_required
+@permission_required("core.view_secuencianumerica", raise_exception=True)
+def secuencias_list(request):
+    secuencias = SecuenciaNumerica.objects.all()
+    return render(
+        request,
+        "config/secuencias/list.html",
+        {"secuencias": secuencias},
 # ======== CRUD Modos de Entrega ========
 
 
@@ -1091,6 +1108,20 @@ def modo_entrega_list(request):
 
 
 @login_required
+@permission_required("core.add_secuencianumerica", raise_exception=True)
+def secuencias_create(request):
+    if request.method == "POST":
+        form = SecuenciaNumericaForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect("core:secuencias_list")
+    else:
+        form = SecuenciaNumericaForm()
+    return render(
+        request,
+        "config/secuencias/form.html",
+        {"form": form, "title": "Crear secuencia"},
+
 @permission_required("core.add_modoentrega", raise_exception=True)
 def modo_entrega_create(request):
     if request.method == "POST":
@@ -1108,6 +1139,20 @@ def modo_entrega_create(request):
 
 
 @login_required
+@permission_required("core.change_secuencianumerica", raise_exception=True)
+def secuencias_update(request, pk):
+    secuencia = get_object_or_404(SecuenciaNumerica, pk=pk)
+    if request.method == "POST":
+        form = SecuenciaNumericaForm(request.POST, instance=secuencia)
+        if form.is_valid():
+            form.save()
+            return redirect("core:secuencias_list")
+    else:
+        form = SecuenciaNumericaForm(instance=secuencia)
+    return render(
+        request,
+        "config/secuencias/form.html",
+        {"form": form, "title": "Editar secuencia"},
 @permission_required("core.change_modoentrega", raise_exception=True)
 def modo_entrega_update(request, pk):
     modo = get_object_or_404(ModoEntrega, pk=pk)
@@ -1126,6 +1171,17 @@ def modo_entrega_update(request, pk):
 
 
 @login_required
+@permission_required("core.delete_secuencianumerica", raise_exception=True)
+def secuencias_delete(request, pk):
+    secuencia = get_object_or_404(SecuenciaNumerica, pk=pk)
+    if request.method == "POST":
+        secuencia.delete()
+        return redirect("core:secuencias_list")
+    return render(
+        request,
+        "config/secuencias/confirm_delete.html",
+        {"secuencia": secuencia},
+
 @permission_required("core.delete_modoentrega", raise_exception=True)
 def modo_entrega_delete(request, pk):
     modo = get_object_or_404(ModoEntrega, pk=pk)

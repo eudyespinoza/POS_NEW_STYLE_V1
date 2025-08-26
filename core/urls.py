@@ -39,6 +39,10 @@ urlpatterns = [
     path('api/save_user_cart', views.api_save_user_cart, name='api_save_user_cart'),
     path('api/get_user_cart', views.api_get_user_cart, name='api_get_user_cart'),
 
+    path('config/secuencias/', views.secuencias_list, name='secuencias_list'),
+    path('config/secuencias/nueva/', views.secuencias_create, name='secuencias_create'),
+    path('config/secuencias/<int:pk>/editar/', views.secuencias_update, name='secuencias_update'),
+    path('config/secuencias/<int:pk>/eliminar/', views.secuencias_delete, name='secuencias_delete'),
 
     # Configuración ARCA
     path('config/arca/tipos-contribuyente/', views.tipos_contribuyente_list, name='tipos_contribuyente_list'),

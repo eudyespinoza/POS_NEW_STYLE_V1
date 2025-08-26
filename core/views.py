@@ -11,11 +11,17 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_GET, require_POST
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.decorators import login_required
+from django.contrib.admin.views.decorators import staff_member_required
+from django.urls import reverse
+from .models import TipoContribuyente
+from .forms import TipoContribuyenteForm
 from django.contrib.auth.decorators import login_required, permission_required
 from django.urls import reverse
 from django import forms
 
 from .models import ModoEntrega
+
 
 import pyarrow.compute as pc
 
@@ -60,6 +66,47 @@ from .scheduler import (
 logger = logging.getLogger(__name__)
 
 
+# ======== Config: Tipos de contribuyente ========
+@staff_member_required
+def tipos_contribuyente_list(request):
+    tipos = TipoContribuyente.objects.all()
+    return render(request, 'config/tipos_contribuyente/list.html', {'tipos': tipos})
+
+
+@staff_member_required
+def tipos_contribuyente_create(request):
+    if request.method == 'POST':
+        form = TipoContribuyenteForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('core:tipos_contribuyente_list')
+    else:
+        form = TipoContribuyenteForm()
+    return render(request, 'config/tipos_contribuyente/form.html', {'form': form})
+
+
+@staff_member_required
+def tipos_contribuyente_update(request, pk):
+    tipo = get_object_or_404(TipoContribuyente, pk=pk)
+    if request.method == 'POST':
+        form = TipoContribuyenteForm(request.POST, instance=tipo)
+        if form.is_valid():
+            form.save()
+            return redirect('core:tipos_contribuyente_list')
+    else:
+        form = TipoContribuyenteForm(instance=tipo)
+    return render(request, 'config/tipos_contribuyente/form.html', {'form': form, 'tipo': tipo})
+
+
+@staff_member_required
+def tipos_contribuyente_delete(request, pk):
+    tipo = get_object_or_404(TipoContribuyente, pk=pk)
+    if request.method == 'POST':
+        tipo.delete()
+        return redirect('core:tipos_contribuyente_list')
+    return render(request, 'config/tipos_contribuyente/confirm_delete.html', {'tipo': tipo})
+
+
 class ModoEntregaForm(forms.ModelForm):
     class Meta:
         model = ModoEntrega
@@ -67,6 +114,7 @@ class ModoEntregaForm(forms.ModelForm):
         widgets = {
             "nombre": forms.TextInput(attrs={"class": "form-control"})
         }
+
 
 # ======== Raíz ========
 @login_required

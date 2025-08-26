@@ -1,0 +1,31 @@
+{% extends 'layout.html' %}
+{% block title %}Tipos de contribuyente{% endblock %}
+{% block content %}
+<div class="container">
+  <h1>Tipos de contribuyente</h1>
+  <a href="{% url 'core:tipos_contribuyente_create' %}" class="btn btn-primary mb-3">Nuevo</a>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>Código ARCA</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for tipo in tipos %}
+      <tr>
+        <td>{{ tipo.nombre }}</td>
+        <td>{{ tipo.codigo_arca }}</td>
+        <td>
+          <a href="{% url 'core:tipos_contribuyente_update' tipo.pk %}" class="btn btn-sm btn-secondary">Editar</a>
+          <a href="{% url 'core:tipos_contribuyente_delete' tipo.pk %}" class="btn btn-sm btn-danger">Eliminar</a>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="3">No hay tipos de contribuyente.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

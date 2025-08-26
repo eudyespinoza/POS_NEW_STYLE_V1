@@ -38,4 +38,10 @@ urlpatterns = [
 
     path('api/save_user_cart', views.api_save_user_cart, name='api_save_user_cart'),
     path('api/get_user_cart', views.api_get_user_cart, name='api_get_user_cart'),
+
+    # Configuración ARCA
+    path('config/arca/tipos-contribuyente/', views.tipos_contribuyente_list, name='tipos_contribuyente_list'),
+    path('config/arca/tipos-contribuyente/nuevo/', views.tipos_contribuyente_create, name='tipos_contribuyente_create'),
+    path('config/arca/tipos-contribuyente/<int:pk>/editar/', views.tipos_contribuyente_update, name='tipos_contribuyente_update'),
+    path('config/arca/tipos-contribuyente/<int:pk>/eliminar/', views.tipos_contribuyente_delete, name='tipos_contribuyente_delete'),
 ]

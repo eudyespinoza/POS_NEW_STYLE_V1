@@ -1,0 +1,23 @@
+{% extends 'layout.html' %}
+{% block title %}{% if form.instance.pk %}Editar{% else %}Nuevo{% endif %} Tipo de contribuyente{% endblock %}
+{% block content %}
+<div class="container">
+  <h1>{% if form.instance.pk %}Editar{% else %}Nuevo{% endif %} Tipo de contribuyente</h1>
+  <form method="post">
+    {% csrf_token %}
+    <div class="mb-3">
+      {{ form.nombre.label_tag }}
+      {{ form.nombre }}
+      {% for error in form.nombre.errors %}<div class="text-danger">{{ error }}</div>{% endfor %}
+    </div>
+    <div class="mb-3">
+      {{ form.codigo_arca.label_tag }}
+      {{ form.codigo_arca }}
+      {% for error in form.codigo_arca.errors %}<div class="text-danger">{{ error }}</div>{% endfor %}
+    </div>
+    {% if form.non_field_errors %}<div class="mb-3 text-danger">{{ form.non_field_errors }}</div>{% endif %}
+    <button type="submit" class="btn btn-primary">Guardar</button>
+    <a href="{% url 'core:tipos_contribuyente_list' %}" class="btn btn-secondary">Cancelar</a>
+  </form>
+</div>
+{% endblock %}

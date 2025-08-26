@@ -1,0 +1,31 @@
+{% extends 'layout.html' %}
+{% block title %}Modos de entrega{% endblock %}
+{% block content %}
+<div class="container">
+  <h1>Modos de entrega</h1>
+  <a class="btn btn-primary mb-3" href="{% url 'core:modo_entrega_create' %}">Nuevo</a>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for modo in modos %}
+      <tr>
+        <td>{{ modo.nombre }}</td>
+        <td class="text-end">
+          <a class="btn btn-sm btn-secondary" href="{% url 'core:modo_entrega_update' modo.id %}">Editar</a>
+          <a class="btn btn-sm btn-danger" href="{% url 'core:modo_entrega_delete' modo.id %}">Eliminar</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="2" class="text-center">No hay modos de entrega.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

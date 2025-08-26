@@ -14,6 +14,17 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required, permission_required
 from django.urls import reverse
 from django import forms
+from django.contrib.auth.decorators import login_required
+from django.contrib.admin.views.decorators import staff_member_required
+from django.urls import reverse
+from .models import TipoContribuyente
+from .forms import TipoContribuyenteForm
+from django.contrib.auth.decorators import login_required, permission_required
+from django.urls import reverse
+from django import forms
+
+from .models import ModoEntrega
+
 
 import pyarrow.compute as pc
 
@@ -64,6 +75,55 @@ class SecuenciaNumericaForm(forms.ModelForm):
     class Meta:
         model = SecuenciaNumerica
         fields = ["nombre", "prefijo", "valor_actual", "incremento"]
+# ======== Config: Tipos de contribuyente ========
+@staff_member_required
+def tipos_contribuyente_list(request):
+    tipos = TipoContribuyente.objects.all()
+    return render(request, 'config/tipos_contribuyente/list.html', {'tipos': tipos})
+
+
+@staff_member_required
+def tipos_contribuyente_create(request):
+    if request.method == 'POST':
+        form = TipoContribuyenteForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('core:tipos_contribuyente_list')
+    else:
+        form = TipoContribuyenteForm()
+    return render(request, 'config/tipos_contribuyente/form.html', {'form': form})
+
+
+@staff_member_required
+def tipos_contribuyente_update(request, pk):
+    tipo = get_object_or_404(TipoContribuyente, pk=pk)
+    if request.method == 'POST':
+        form = TipoContribuyenteForm(request.POST, instance=tipo)
+        if form.is_valid():
+            form.save()
+            return redirect('core:tipos_contribuyente_list')
+    else:
+        form = TipoContribuyenteForm(instance=tipo)
+    return render(request, 'config/tipos_contribuyente/form.html', {'form': form, 'tipo': tipo})
+
+
+@staff_member_required
+def tipos_contribuyente_delete(request, pk):
+    tipo = get_object_or_404(TipoContribuyente, pk=pk)
+    if request.method == 'POST':
+        tipo.delete()
+        return redirect('core:tipos_contribuyente_list')
+    return render(request, 'config/tipos_contribuyente/confirm_delete.html', {'tipo': tipo})
+
+
+class ModoEntregaForm(forms.ModelForm):
+    class Meta:
+        model = ModoEntrega
+        fields = ["nombre"]
+        widgets = {
+            "nombre": forms.TextInput(attrs={"class": "form-control"})
+        }
+
 
 # ======== Raíz ========
 @login_required
@@ -1033,6 +1093,17 @@ def secuencias_list(request):
         request,
         "config/secuencias/list.html",
         {"secuencias": secuencias},
+# ======== CRUD Modos de Entrega ========
+
+
+@login_required
+@permission_required("core.view_modoentrega", raise_exception=True)
+def modo_entrega_list(request):
+    modos = ModoEntrega.objects.all()
+    return render(
+        request,
+        "config/modos_entrega/list.html",
+        {"modos": modos},
     )
 
 
@@ -1050,6 +1121,20 @@ def secuencias_create(request):
         request,
         "config/secuencias/form.html",
         {"form": form, "title": "Crear secuencia"},
+
+@permission_required("core.add_modoentrega", raise_exception=True)
+def modo_entrega_create(request):
+    if request.method == "POST":
+        form = ModoEntregaForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect("core:modo_entrega_list")
+    else:
+        form = ModoEntregaForm()
+    return render(
+        request,
+        "config/modos_entrega/form.html",
+        {"form": form, "titulo": "Nuevo modo de entrega"},
     )
 
 
@@ -1068,6 +1153,20 @@ def secuencias_update(request, pk):
         request,
         "config/secuencias/form.html",
         {"form": form, "title": "Editar secuencia"},
+@permission_required("core.change_modoentrega", raise_exception=True)
+def modo_entrega_update(request, pk):
+    modo = get_object_or_404(ModoEntrega, pk=pk)
+    if request.method == "POST":
+        form = ModoEntregaForm(request.POST, instance=modo)
+        if form.is_valid():
+            form.save()
+            return redirect("core:modo_entrega_list")
+    else:
+        form = ModoEntregaForm(instance=modo)
+    return render(
+        request,
+        "config/modos_entrega/form.html",
+        {"form": form, "titulo": "Editar modo de entrega"},
     )
 
 
@@ -1082,4 +1181,15 @@ def secuencias_delete(request, pk):
         request,
         "config/secuencias/confirm_delete.html",
         {"secuencia": secuencia},
+
+@permission_required("core.delete_modoentrega", raise_exception=True)
+def modo_entrega_delete(request, pk):
+    modo = get_object_or_404(ModoEntrega, pk=pk)
+    if request.method == "POST":
+        modo.delete()
+        return redirect("core:modo_entrega_list")
+    return render(
+        request,
+        "config/modos_entrega/confirm_delete.html",
+        {"modo": modo},
     )

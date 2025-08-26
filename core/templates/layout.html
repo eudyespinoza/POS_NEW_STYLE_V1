@@ -186,15 +186,6 @@
     <!-- Footer total -->
     <div class="cart-footer bg-light p-3 border-top">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <div class="shipping-wrapper">
-          <label for="shippingType" class="fw-bold me-2">Envío:</label>
-          <select id="shippingType" class="form-select form-select-sm">
-            <option value="" selected disabled>Seleccione...</option>
-            {% for modo in modos_entrega %}
-            <option value="{{ modo.id }}">{{ modo.nombre }}</option>
-            {% endfor %}
-          </select>
-        </div>
         <div class="observations-wrapper flex-grow-1">
           <label for="cartObservations" class="fw-bold me-2">Observaciones:</label>
           <textarea id="cartObservations" class="form-control form-control-sm" maxlength="180" placeholder="Ingrese observaciones (máx. 180 caracteres)" rows="1"></textarea>

@@ -88,12 +88,14 @@ let cart = {
     client: null,
     quotation_id: null,
     type: 'new',
-    observations: ''
+    observations: '',
+    shipping_type: ''
 }; // Array para almacenar los ítems del carrito
 let currentProductToAdd = null; // Producto seleccionado para agregar al carrito
 let selectedClient = null;
 let lastProductsUpdate = 0;
 let cartObservations = "";
+let cartShippingType = "";
 let db;
 const DB_NAME = 'CartDB';
 const DB_VERSION = 1;
@@ -1364,6 +1366,24 @@ document.addEventListener("DOMContentLoaded", function () {
             });
         });
     }
+
+    const shippingSelect = document.getElementById("shippingType");
+    if (shippingSelect) {
+        shippingSelect.addEventListener("change", function (e) {
+            cartShippingType = e.target.value;
+            cart.shipping_type = cartShippingType;
+            const timestamp = new Date().toISOString();
+            getUserId().then(userId => {
+                Promise.all([
+                    saveCartToIndexedDB(userId, cart, timestamp),
+                    syncCartWithBackend(userId, cart, timestamp)
+                ]).catch(error => {
+                    console.error('Error al guardar tipo de envío:', error);
+                    showToast('danger', 'Error al guardar tipo de envío');
+                });
+            });
+        });
+    }
 });
 
 async function updateCartPrices(storeId) {
@@ -1819,6 +1839,7 @@ function updateCartDisplay() {
     const cartClientInfo = document.getElementById("cartClientInfo");
     let cartClientFloat = document.getElementById("cartClientFloat");
     const observationsInput = document.getElementById("cartObservations");
+    const shippingSelect = document.getElementById("shippingType");
 
     if (!cartItemCount || !cartTotalFloat || !cartTotalFixed) {
         console.error("Elementos críticos 'cartItemCount', 'cartTotalFloat' o 'cartTotalFixed' no encontrados en el DOM");
@@ -1828,6 +1849,10 @@ function updateCartDisplay() {
 
     if (observationsInput) {
         cartObservations = sanitizeText(observationsInput.value);
+    }
+    if (shippingSelect) {
+        cartShippingType = shippingSelect.value;
+        cart.shipping_type = cartShippingType;
     }
 
     if (!cartClientFloat) {
@@ -1899,6 +1924,9 @@ function updateCartDisplay() {
             cartItemCount.textContent = '0';
             if (observationsInput) {
                 observationsInput.value = cartObservations;
+            }
+            if (shippingSelect) {
+                shippingSelect.value = cartShippingType;
             }
             return;
         }
@@ -2008,6 +2036,9 @@ function updateCartDisplay() {
         if (observationsInput) {
             observationsInput.value = cartObservations;
         }
+        if (shippingSelect) {
+            shippingSelect.value = cartShippingType;
+        }
 
     }
 }
@@ -2084,11 +2115,15 @@ function clearCart() {
         client: null,
         quotation_id: null,
         type: 'new',
-        observations: ''
+        observations: '',
+        shipping_type: ''
     };
     cartObservations = '';
+    cartShippingType = '';
     const obsInputReset = document.getElementById("cartObservations");
     if (obsInputReset) obsInputReset.value = '';
+    const shippingSelectReset = document.getElementById("shippingType");
+    if (shippingSelectReset) shippingSelectReset.value = '';
     const timestamp = new Date().toISOString();
     getUserId().then(userId => {
         Promise.all([
@@ -2220,7 +2255,8 @@ async function createInD365WithType(tipo_presupuesto) {
             cart: {
                 items: cart.items.filter(item => item.productId),
                 client: cart.client || {},
-                observations: cartObservations
+                observations: cartObservations,
+                shipping_type: cartShippingType
             },
             store_id: storeId,
             tipo_presupuesto: tipo_presupuesto
@@ -2937,6 +2973,7 @@ async function generatePdfOnly() {
             client: cart.client || null,
             items: cart.items.filter(item => item.productId),
             observations: cartObservations,
+            shipping_type: cartShippingType,
             timestamp: new Date().toISOString()
         };
 
@@ -3569,7 +3606,8 @@ async function loadQuotation(quotationId, type) {
             client: quotation.client || null,
             quotation_id: quotation.quotation_id || null,
             type: quotation.quotation_id ? type : 'new',
-            observations: quotation.observations || ''
+            observations: quotation.observations || '',
+            shipping_type: quotation.shipping_type || ''
         };
         // Mapear ítems directamente
         const itemsWithNumericPrices = (quotation.items || []).map(item => ({
@@ -3589,12 +3627,18 @@ async function loadQuotation(quotationId, type) {
             client: quotation.client || null,
             quotation_id: quotation.quotation_id || null,
             type: quotation.quotation_id ? type : 'new',
-            observations: quotation.observations || ''
+            observations: quotation.observations || '',
+            shipping_type: quotation.shipping_type || ''
         };
         cartObservations = cart.observations;
+        cartShippingType = cart.shipping_type || '';
         const observationsInput = document.getElementById("cartObservations");
         if (observationsInput) {
             observationsInput.value = cartObservations;
+        }
+        const shippingSelect = document.getElementById("shippingType");
+        if (shippingSelect) {
+            shippingSelect.value = cartShippingType;
         }
 
         // Actualizar el filtro de tienda
@@ -4142,8 +4186,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (localData && localData.cart) {
                 cart = localData.cart;
                 cartObservations = cart.observations || '';
+                cartShippingType = cart.shipping_type || '';
                 const obsInput = document.getElementById("cartObservations");
                 if (obsInput) obsInput.value = cartObservations;
+                const shipInput = document.getElementById("shippingType");
+                if (shipInput) shipInput.value = cartShippingType;
                 updateCartDisplay();
             }
             return;
@@ -4163,7 +4210,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 await syncCartWithBackend(userId, cart, timestamp);
             } else {
                 // Si no hay datos locales, usar carrito vacío
-                cart = { items: [], client: null, quotation_id: null, type: 'new', observations: '' };
+                cart = { items: [], client: null, quotation_id: null, type: 'new', observations: '', shipping_type: '' };
                 const timestamp = new Date().toISOString();
                 await saveCartToIndexedDB(userId, cart, timestamp);
                 await syncCartWithBackend(userId, cart, timestamp);
@@ -4171,17 +4218,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         cartObservations = cart.observations || '';
+        cartShippingType = cart.shipping_type || '';
         const obsInput = document.getElementById("cartObservations");
         if (obsInput) obsInput.value = cartObservations;
+        const shipInput = document.getElementById("shippingType");
+        if (shipInput) shipInput.value = cartShippingType;
         updateCartDisplay();
     } catch (error) {
         console.error('Error al inicializar el carrito:', error);
         showToast('danger', 'Error al cargar el carrito');
         // Usar carrito vacío como última opción
-        cart = { items: [], client: null, quotation_id: null, type: 'new', observations: '' };
+        cart = { items: [], client: null, quotation_id: null, type: 'new', observations: '', shipping_type: '' };
         cartObservations = '';
+        cartShippingType = '';
         const obsInputFallback = document.getElementById("cartObservations");
         if (obsInputFallback) obsInputFallback.value = cartObservations;
+        const shipInputFallback = document.getElementById("shippingType");
+        if (shipInputFallback) shipInputFallback.value = cartShippingType;
         updateCartDisplay();
     }
 });

@@ -1,0 +1,19 @@
+{% extends 'layout.html' %}
+{% block title %}{{ titulo }}{% endblock %}
+{% block content %}
+<div class="container">
+  <h1>{{ titulo }}</h1>
+  <form method="post">
+    {% csrf_token %}
+    <div class="mb-3">
+      {{ form.nombre.label_tag }}
+      {{ form.nombre }}
+      {% if form.nombre.errors %}
+      <div class="text-danger">{{ form.nombre.errors }}</div>
+      {% endif %}
+    </div>
+    <button type="submit" class="btn btn-primary">Guardar</button>
+    <a href="{% url 'core:modo_entrega_list' %}" class="btn btn-secondary">Cancelar</a>
+  </form>
+</div>
+{% endblock %}

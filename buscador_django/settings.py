@@ -118,5 +118,9 @@ MESSAGE_TAGS = {
 }
 
 # Sesión
+SESSION_ENGINE = 'django.contrib.sessions.backends.file'
+SESSION_FILE_DIR = Path(os.environ.get('DJANGO_SESSION_FILE_PATH', BASE_DIR / 'sessions'))
+SESSION_FILE_DIR.mkdir(parents=True, exist_ok=True)
+SESSION_FILE_PATH = str(SESSION_FILE_DIR)
 SESSION_COOKIE_AGE = 60 * 60 * 4  # 4 horas
 SESSION_SAVE_EVERY_REQUEST = True

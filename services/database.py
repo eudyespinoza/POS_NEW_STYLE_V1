@@ -54,6 +54,8 @@ def conectar_db(tabla):
     db_path = DB_PATHS.get(tabla)
     if not db_path:
         raise ValueError(f"No se encontró una base de datos para la tabla {tabla}")
+    # Asegurar que el directorio de la base de datos exista antes de conectar
+    os.makedirs(os.path.dirname(db_path), exist_ok=True)
     try:
         conexion = sqlite3.connect(db_path, timeout=10)
         conexion.execute("PRAGMA journal_mode=WAL;")

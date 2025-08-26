@@ -190,8 +190,9 @@
           <label for="shippingType" class="fw-bold me-2">Envío:</label>
           <select id="shippingType" class="form-select form-select-sm">
             <option value="" selected disabled>Seleccione...</option>
-            <option value="pickup">Retiro en tienda</option>
-            <option value="delivery">Envío a domicilio</option>
+            {% for modo in modos_entrega %}
+            <option value="{{ modo.id }}">{{ modo.nombre }}</option>
+            {% endfor %}
           </select>
         </div>
         <div class="observations-wrapper flex-grow-1">

@@ -3019,13 +3019,18 @@ async function generatePdfOnly() {
 function openPaymentSimulator() {
     const totalStr = document.getElementById('cartTotalFloat')?.textContent || '0';
     const total = parseFloat(totalStr.replace(/\./g, '').replace(',', '.')) || 0;
-    const frame = document.getElementById('paymentSimulatorFrame');
-    if (frame) {
-        frame.src = `/simulador/?total=${total}`;
+    try {
         const modalEl = document.getElementById('paymentSimulatorModal');
-        const modal = new bootstrap.Modal(modalEl);
+        const frame = document.getElementById('paymentSimulatorFrame');
+        if (!modalEl || !frame || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+            window.open(`/simulador/?total=${total}`, '_blank');
+            return;
+        }
+        frame.src = `/simulador/?total=${total}`;
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
         modal.show();
-    } else {
+    } catch (err) {
+        console.error('Error al abrir simulador de pagos:', err);
         window.open(`/simulador/?total=${total}`, '_blank');
     }
 }
@@ -3049,6 +3054,16 @@ document.addEventListener("DOMContentLoaded", function () {
         cartButton.addEventListener('mouseleave', function () {
             if (!this.classList.contains('expanded')) {
                 this.classList.remove('expanded');
+            }
+        });
+    }
+
+    const simulatorModal = document.getElementById('paymentSimulatorModal');
+    if (simulatorModal) {
+        simulatorModal.addEventListener('hidden.bs.modal', () => {
+            const cartOverlay = document.getElementById('cartOverlay');
+            if (cartOverlay && cartOverlay.classList.contains('d-none')) {
+                cartOverlay.classList.remove('d-none');
             }
         });
     }

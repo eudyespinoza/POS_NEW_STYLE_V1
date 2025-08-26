@@ -1073,14 +1073,14 @@ body {
 
 .cart-container {
   background: var(--cart-bg);
-  border-radius: 8px;
-  width: 95vw;
-  height: 90vh;
+  border-radius: 0;
+  width: 100vw;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
   font-size: 0.75rem;
-  max-width: 900px;
+  max-width: none;
   position: relative;
   color: var(--text-color);
   transition: background-color 0.3s ease;
@@ -1110,7 +1110,14 @@ body {
 .cart-footer .observations-wrapper {
   display: flex;
   align-items: center;
-  width: 65%;
+  width: 50%;
+  flex-grow: 1;
+}
+
+.cart-footer .shipping-wrapper {
+  display: flex;
+  align-items: center;
+  width: 25%;
 }
 
 .cart-footer .observations-wrapper label {
@@ -1140,6 +1147,23 @@ body {
   color: var(--icon-color) !important;
   opacity: 0.7;
   transition: color 0.3s ease;
+}
+
+.cart-footer .shipping-wrapper label {
+  font-size: 0.75rem;
+  white-space: nowrap;
+  color: var(--text-color) !important;
+  transition: color 0.3s ease;
+  margin-right: 8px;
+}
+
+.cart-footer .shipping-wrapper select {
+  font-size: 0.7rem;
+  height: 30px;
+  border-radius: 4px;
+  background-color: var(--input-bg) !important;
+  color: var(--text-color) !important;
+  border: 1px solid var(--input-border) !important;
 }
 
 .cart-footer .total-wrapper {
@@ -1561,8 +1585,8 @@ body {
   }
 
   .cart-container {
-    width: 95vw;
-    height: 90vh;
+    width: 100vw;
+    height: 100vh;
   }
 
   .cart-content {
@@ -1573,7 +1597,8 @@ body {
     padding: 10px 15px;
   }
 
-  .cart-footer .observations-wrapper {
+  .cart-footer .observations-wrapper,
+  .cart-footer .shipping-wrapper {
     width: 100%;
     margin-bottom: 10px;
   }

@@ -1841,9 +1841,15 @@ function updateCartDisplay() {
     const observationsInput = document.getElementById("cartObservations");
     const shippingSelect = document.getElementById("shippingType");
 
-    if (!cartItemCount || !cartTotalFloat || !cartTotalFixed) {
-        console.error("Elementos críticos 'cartItemCount', 'cartTotalFloat' o 'cartTotalFixed' no encontrados en el DOM");
+    if (!cartTotalFixed) {
+        console.error("Elemento 'cartTotalFixed' no encontrado en el DOM");
         return;
+    }
+    if (!cartItemCount) {
+        console.warn("Elemento 'cartItemCount' no encontrado; se omitirá su actualización.");
+    }
+    if (!cartTotalFloat) {
+        console.warn("Elemento 'cartTotalFloat' no encontrado; se omitirá su actualización.");
     }
 
 
@@ -1920,8 +1926,12 @@ function updateCartDisplay() {
             cartItemsDesktop.innerHTML = '<tr><td colspan="6" class="text-muted">El carrito está vacío o no se pudo cargar.</td></tr>';
             cartItemsMobile.innerHTML = '<p class="text-muted">El carrito está vacío o no se pudo cargar.</p>';
             cartTotalFixed.textContent = '$0,00';
-            cartTotalFloat.textContent = '0,00';
-            cartItemCount.textContent = '0';
+            if (cartTotalFloat) {
+                cartTotalFloat.textContent = '0,00';
+            }
+            if (cartItemCount) {
+                cartItemCount.textContent = '0';
+            }
             if (observationsInput) {
                 observationsInput.value = cartObservations;
             }
@@ -2030,8 +2040,12 @@ function updateCartDisplay() {
         });
 
         cartTotalFixed.textContent = `$${formatearMoneda(total)}`;
-        cartTotalFloat.textContent = formatearMoneda(total);
-        cartItemCount.textContent = cart.items.filter(item => item.productId).length;
+        if (cartTotalFloat) {
+            cartTotalFloat.textContent = formatearMoneda(total);
+        }
+        if (cartItemCount) {
+            cartItemCount.textContent = cart.items.filter(item => item.productId).length;
+        }
 
         if (observationsInput) {
             observationsInput.value = cartObservations;
@@ -2044,22 +2058,50 @@ function updateCartDisplay() {
 }
 
 window.addEventListener("resize", () => {
+  const cartItemsDesktop = document.getElementById("cartItemsDesktop");
+  const cartItemsMobile = document.getElementById("cartItemsMobile");
   const isMobileResize = window.innerWidth <= 768;
-  if (isMobileResize) {
-    cartItemsDesktop.parentElement.style.display = "none";
-    cartItemsMobile.parentElement.style.display = "block";
-  } else {
-    cartItemsDesktop.parentElement.style.display = "table";
-    cartItemsMobile.parentElement.style.display = "none";
+
+  if (cartItemsDesktop && cartItemsMobile) {
+    if (isMobileResize) {
+      cartItemsDesktop.parentElement.style.display = "none";
+      cartItemsMobile.parentElement.style.display = "block";
+    } else {
+      cartItemsDesktop.parentElement.style.display = "table";
+      cartItemsMobile.parentElement.style.display = "none";
+    }
   }
+
   updateCartDisplay();
 });
 
 function updateCartQuantity(index, newQuantity) {
     const quantity = parseFloat(newQuantity);
-    const cantidadValidada = validarCantidad(cart[index].multiplo, quantity);
-    cart[index].quantity = cantidadValidada;
-    updateCartDisplay();
+    if (!cart.items[index]) {
+        console.warn(`Ítem en índice ${index} no existe en cart.items`);
+        return;
+    }
+    const cantidadValidada = validarCantidad(cart.items[index].multiplo, quantity);
+    cart.items[index].quantity = cantidadValidada;
+
+    const timestamp = new Date().toISOString();
+    getUserId().then(userId => {
+        if (!userId) {
+            saveCartToIndexedDB('anonymous', cart, timestamp).then(() => {
+                updateCartDisplay();
+            });
+            return;
+        }
+        Promise.all([
+            saveCartToIndexedDB(userId, cart, timestamp),
+            syncCartWithBackend(userId, cart, timestamp)
+        ]).then(() => {
+            updateCartDisplay();
+        }).catch(error => {
+            console.error('Error al actualizar cantidad del carrito:', error);
+            updateCartDisplay();
+        });
+    });
 }
 
 function adjustCartQuantity(index, delta) {

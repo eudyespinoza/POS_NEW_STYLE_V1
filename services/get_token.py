@@ -27,7 +27,7 @@ logging.basicConfig(
 class TokenRetrievalError(Exception):
     """Error raised when D365 access token retrieval fails."""
 
-    def __init__(self, message: str = "No se pudo obtener la secuencia") -> None:
+    def __init__(self, message: str = "No se pudo obtener el token de acceso") -> None:
         # Provide a JsonResponse for potential HTTP contexts
         self.response = JsonResponse({"error": message}, status=500)
         super().__init__(message)
@@ -74,7 +74,7 @@ def get_access_token_d365():
 
     except requests.RequestException as e:
         logging.error(f"Consulta token a D365 FALLO. {e}")
-        raise TokenRetrievalError() from e
+        raise TokenRetrievalError("No se pudo obtener el token de acceso") from e
 
 
 def get_access_token_d365_qa():
@@ -102,4 +102,4 @@ def get_access_token_d365_qa():
 
     except requests.RequestException as e:
         logging.error(f"Consulta token a D365 FALLO. {e}")
-        raise TokenRetrievalError() from e
+        raise TokenRetrievalError("No se pudo obtener el token de acceso") from e

@@ -48,6 +48,11 @@
     <!-- Contenido colapsable -->
     <div class="collapse navbar-collapse" id="navbarCollapse">
       <div class="navbar-nav ms-auto d-flex align-items-center gap-3">
+        {% if request.user.is_staff %}
+          <a href="{% url 'core:secuencias_list' %}" class="nav-link text-light">Secuencias</a>
+          <a href="{% url 'core:tipos_contribuyente_list' %}" class="nav-link text-light">Tipos de Contribuyente</a>
+          <a href="{% url 'core:modo_entrega_list' %}" class="nav-link text-light">Modos de Entrega</a>
+        {% endif %}
         {% if request.user.is_authenticated %}
           <span class="navbar-text text-light session-info">Hola, {{ request.session.usuario }}</span>
           <button id="themeToggleBtn" class="btn btn-outline-light btn-sm rounded-pill" title="Cambiar tema">

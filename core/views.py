@@ -1093,6 +1093,7 @@ def secuencias_list(request):
         request,
         "config/secuencias/list.html",
         {"secuencias": secuencias},
+    )
 # ======== CRUD Modos de Entrega ========
 
 
@@ -1121,6 +1122,7 @@ def secuencias_create(request):
         request,
         "config/secuencias/form.html",
         {"form": form, "title": "Crear secuencia"},
+    )
 
 @permission_required("core.add_modoentrega", raise_exception=True)
 def modo_entrega_create(request):
@@ -1153,6 +1155,7 @@ def secuencias_update(request, pk):
         request,
         "config/secuencias/form.html",
         {"form": form, "title": "Editar secuencia"},
+    )
 @permission_required("core.change_modoentrega", raise_exception=True)
 def modo_entrega_update(request, pk):
     modo = get_object_or_404(ModoEntrega, pk=pk)
@@ -1181,6 +1184,7 @@ def secuencias_delete(request, pk):
         request,
         "config/secuencias/confirm_delete.html",
         {"secuencia": secuencia},
+    )
 
 @permission_required("core.delete_modoentrega", raise_exception=True)
 def modo_entrega_delete(request, pk):

@@ -118,3 +118,13 @@ function toggleCuotas(sel) {
         cuotas.value = '1';
     }
 }
+
+// Expose functions used in inline handlers
+window.setActiveAmountInput = setActiveAmountInput;
+window.applyChip = applyChip;
+window.applySaldo = applySaldo;
+window.keypad = keypad;
+window.applyEnter = applyEnter;
+window.agregarLinea = agregarLinea;
+window.eliminarLinea = eliminarLinea;
+window.toggleCuotas = toggleCuotas;

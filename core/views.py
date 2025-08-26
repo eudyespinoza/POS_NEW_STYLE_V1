@@ -7,12 +7,15 @@ from datetime import timezone, timedelta
 from typing import List, Dict
 
 from django.conf import settings
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_GET, require_POST
 from django.views.decorators.csrf import csrf_exempt
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, permission_required
 from django.urls import reverse
+from django import forms
+
+from .models import ModoEntrega
 
 import pyarrow.compute as pc
 
@@ -55,6 +58,15 @@ from .scheduler import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class ModoEntregaForm(forms.ModelForm):
+    class Meta:
+        model = ModoEntrega
+        fields = ["nombre"]
+        widgets = {
+            "nombre": forms.TextInput(attrs={"class": "form-control"})
+        }
 
 # ======== Raíz ========
 @login_required
@@ -1013,4 +1025,67 @@ def simulador_pagos(request):
             "ahora": datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
             "teclado_rows": TECLADO_ROWS,
         },
+    )
+
+
+# ======== CRUD Modos de Entrega ========
+
+
+@login_required
+@permission_required("core.view_modoentrega", raise_exception=True)
+def modo_entrega_list(request):
+    modos = ModoEntrega.objects.all()
+    return render(
+        request,
+        "config/modos_entrega/list.html",
+        {"modos": modos},
+    )
+
+
+@login_required
+@permission_required("core.add_modoentrega", raise_exception=True)
+def modo_entrega_create(request):
+    if request.method == "POST":
+        form = ModoEntregaForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect("core:modo_entrega_list")
+    else:
+        form = ModoEntregaForm()
+    return render(
+        request,
+        "config/modos_entrega/form.html",
+        {"form": form, "titulo": "Nuevo modo de entrega"},
+    )
+
+
+@login_required
+@permission_required("core.change_modoentrega", raise_exception=True)
+def modo_entrega_update(request, pk):
+    modo = get_object_or_404(ModoEntrega, pk=pk)
+    if request.method == "POST":
+        form = ModoEntregaForm(request.POST, instance=modo)
+        if form.is_valid():
+            form.save()
+            return redirect("core:modo_entrega_list")
+    else:
+        form = ModoEntregaForm(instance=modo)
+    return render(
+        request,
+        "config/modos_entrega/form.html",
+        {"form": form, "titulo": "Editar modo de entrega"},
+    )
+
+
+@login_required
+@permission_required("core.delete_modoentrega", raise_exception=True)
+def modo_entrega_delete(request, pk):
+    modo = get_object_or_404(ModoEntrega, pk=pk)
+    if request.method == "POST":
+        modo.delete()
+        return redirect("core:modo_entrega_list")
+    return render(
+        request,
+        "config/modos_entrega/confirm_delete.html",
+        {"modo": modo},
     )

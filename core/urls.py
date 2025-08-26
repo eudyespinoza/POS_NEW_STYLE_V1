@@ -38,4 +38,10 @@ urlpatterns = [
 
     path('api/save_user_cart', views.api_save_user_cart, name='api_save_user_cart'),
     path('api/get_user_cart', views.api_get_user_cart, name='api_get_user_cart'),
+
+    # Configuración - Modos de entrega
+    path('config/modos-entrega/', views.modo_entrega_list, name='modo_entrega_list'),
+    path('config/modos-entrega/nuevo/', views.modo_entrega_create, name='modo_entrega_create'),
+    path('config/modos-entrega/<int:pk>/editar/', views.modo_entrega_update, name='modo_entrega_update'),
+    path('config/modos-entrega/<int:pk>/eliminar/', views.modo_entrega_delete, name='modo_entrega_delete'),
 ]

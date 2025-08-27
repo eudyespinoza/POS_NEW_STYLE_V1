@@ -1899,7 +1899,7 @@ function updateCartDisplay() {
 
         if (!cart.items || !Array.isArray(cart.items)) {
             console.error('cart.items no está definido o no es un array:', cart.items);
-            cartItemsDesktop.innerHTML = '<tr><td colspan="6" class="text-muted">El carrito está vacío o no se pudo cargar.</td></tr>';
+            cartItemsDesktop.innerHTML = '<tr><td colspan="8" class="text-muted">El carrito está vacío o no se pudo cargar.</td></tr>';
             cartItemsMobile.innerHTML = '<p class="text-muted">El carrito está vacío o no se pudo cargar.</p>';
             cartTotalFixed.textContent = '$0,00';
             if (cartTotalFloat) {
@@ -1938,6 +1938,14 @@ function updateCartDisplay() {
                             <span style="flex: 1; text-align: right;">${item.productName} ${availabilityText}</span>
                         </div>
                         <div class="cart-row-item d-flex justify-content-between" style="width: 100%; padding: 5px 0;">
+                            <span style="font-weight: 600; min-width: 100px;"><strong>Unidad:</strong></span>
+                            <span style="flex: 1; text-align: right;">${item.unidadMedida || ''}</span>
+                        </div>
+                        <div class="cart-row-item d-flex justify-content-between" style="width: 100%; padding: 5px 0;">
+                            <span style="font-weight: 600; min-width: 100px;"><strong>Factor:</strong></span>
+                            <span style="flex: 1; text-align: right;">${item.multiplo !== undefined && item.multiplo !== null ? Number(item.multiplo).toFixed(2) : ''}</span>
+                        </div>
+                        <div class="cart-row-item d-flex justify-content-between" style="width: 100%; padding: 5px 0;">
                             <span style="font-weight: 600; min-width: 100px;"><strong>Precio:</strong></span>
                             <span style="flex: 1; text-align: right;">${item.available !== false ? '$' + formatearMoneda(item.price) : 'N/A'}</span>
                         </div>
@@ -1961,7 +1969,6 @@ function updateCartDisplay() {
                                         <i class="bi bi-dash"></i>
                                     </button>
                                     <input type="number" class="form-control text-center cart-quantity-input" value="${item.quantity.toFixed(2)}" min="${item.multiplo}" step="${item.multiplo}" onchange="updateCartQuantity(${index}, this.value)" ${disabledAttr}>
-                                    <span class="input-group-text">${item.unidadMedida || ''}</span>
                                     <button class="btn btn-outline-secondary" onclick="adjustCartQuantity(${index}, 1)" ${disabledAttr}>
                                         <i class="bi bi-plus"></i>
                                     </button>
@@ -1977,6 +1984,8 @@ function updateCartDisplay() {
                     row.innerHTML = `
                         <td>${item.productId}</td>
                         <td>${item.productName} ${availabilityText}</td>
+                        <td>${item.unidadMedida || ''}</td>
+                        <td>${item.multiplo !== undefined && item.multiplo !== null ? Number(item.multiplo).toFixed(2) : ''}</td>
                         <td class="cart-quantity">
                             <div class="quantity-wrapper">
                                 <div class="input-group input-group-sm">
@@ -1984,7 +1993,6 @@ function updateCartDisplay() {
                                         <i class="bi bi-dash"></i>
                                     </button>
                                     <input type="number" class="form-control text-center cart-quantity-input" value="${item.quantity.toFixed(2)}" min="${item.multiplo}" step="${item.multiplo}" onchange="updateCartQuantity(${index}, this.value)" ${disabledAttr}>
-                                    <span class="input-group-text">${item.unidadMedida || ''}</span>
                                     <button class="btn btn-outline-secondary" onclick="adjustCartQuantity(${index}, 1)" ${disabledAttr}>
                                         <i class="bi bi-plus"></i>
                                     </button>

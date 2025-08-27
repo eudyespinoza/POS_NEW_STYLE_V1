@@ -25,7 +25,10 @@ DB_PATHS = {
     "misc": os.path.join(BASE_DIR, "misc.db"),
     "stock": os.path.join(BASE_DIR, "stock.db"),
     "store_data": os.path.join(BASE_DIR, "store_data.db"),
-    "grupos_cumplimiento": os.path.join(BASE_DIR, "grupos_cumplimiento.db")
+    "grupos_cumplimiento": os.path.join(BASE_DIR, "grupos_cumplimiento.db"),
+    "secuencias_numericas": os.path.join(BASE_DIR, "secuencias_numericas.db"),
+    "tipos_entrega": os.path.join(BASE_DIR, "tipos_entrega.db"),
+    "config_impositiva": os.path.join(BASE_DIR, "config_impositiva.db")
 }
 
 LOG_DIR = os.path.join(BASE_DIR, "logs")
@@ -193,6 +196,28 @@ def init_db():
                 store_locator_group_name TEXT NOT NULL,
                 invent_location_id TEXT NOT NULL,
                 UNIQUE(store_locator_group_name, invent_location_id)
+            );
+        """,
+        "secuencias_numericas": """
+            CREATE TABLE IF NOT EXISTS secuencias_numericas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nombre TEXT UNIQUE,
+                prefijo TEXT,
+                valor_actual INTEGER,
+                incremento INTEGER
+            );
+        """,
+        "tipos_entrega": """
+            CREATE TABLE IF NOT EXISTS tipos_entrega (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nombre TEXT UNIQUE
+            );
+        """,
+        "config_impositiva": """
+            CREATE TABLE IF NOT EXISTS config_impositiva (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nombre TEXT,
+                codigo_arca TEXT UNIQUE
             );
         """
     }

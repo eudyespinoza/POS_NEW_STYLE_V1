@@ -28,7 +28,8 @@ DB_PATHS = {
     "grupos_cumplimiento": os.path.join(BASE_DIR, "grupos_cumplimiento.db"),
     "secuencias_numericas": os.path.join(BASE_DIR, "secuencias_numericas.db"),
     "tipos_entrega": os.path.join(BASE_DIR, "tipos_entrega.db"),
-    "config_impositiva": os.path.join(BASE_DIR, "config_impositiva.db")
+    "config_impositiva": os.path.join(BASE_DIR, "config_impositiva.db"),
+    "payments": os.path.join(BASE_DIR, "payments.db"),
 }
 
 logger = get_module_logger(__name__)
@@ -210,6 +211,70 @@ def init_db():
                 nombre TEXT,
                 codigo_arca TEXT UNIQUE
             );
+        """,
+        "payments": """
+            CREATE TABLE IF NOT EXISTS payments_config_payment_methods (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                code TEXT UNIQUE,
+                label TEXT,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                sort_order INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS payments_config_card_brands (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT,
+                enabled INTEGER NOT NULL DEFAULT 1
+            );
+            CREATE TABLE IF NOT EXISTS payments_config_credit_plans (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                brand_id INTEGER NOT NULL,
+                installments INTEGER NOT NULL,
+                coef_total REAL NOT NULL,
+                coef_cuota REAL,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                valid_from TEXT,
+                valid_to TEXT,
+                FOREIGN KEY (brand_id) REFERENCES payments_config_card_brands(id)
+            );
+            CREATE TABLE IF NOT EXISTS sales_payment_simulations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                cart_id TEXT,
+                amount_total REAL,
+                currency TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                created_by TEXT,
+                status TEXT,
+                change_amount REAL DEFAULT 0
+            );
+            CREATE TABLE IF NOT EXISTS sales_payment_simulation_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                simulation_id INTEGER NOT NULL,
+                method_code TEXT NOT NULL,
+                amount_base REAL NOT NULL,
+                card_brand_id INTEGER,
+                installments INTEGER,
+                coef_total REAL,
+                interest_amount REAL NOT NULL,
+                amount_final REAL NOT NULL,
+                reference TEXT,
+                extra_meta TEXT,
+                sort_order INTEGER,
+                FOREIGN KEY (simulation_id) REFERENCES sales_payment_simulations(id),
+                FOREIGN KEY (card_brand_id) REFERENCES payments_config_card_brands(id)
+            );
+            INSERT OR IGNORE INTO payments_config_payment_methods(id, code, label, enabled, sort_order) VALUES
+                (1, 'cash', 'Efectivo', 1, 1),
+                (2, 'debit', 'Tarjeta Débito', 1, 2),
+                (3, 'credit', 'Tarjeta Crédito', 1, 3),
+                (4, 'transfer', 'Transferencia', 1, 4),
+                (5, 'check', 'Cheque', 1, 5);
+            INSERT OR IGNORE INTO payments_config_card_brands(id, name, enabled) VALUES
+                (1, 'Visa', 1),
+                (2, 'Mastercard', 1),
+                (3, 'Amex', 1);
+            INSERT OR IGNORE INTO payments_config_credit_plans(id, brand_id, installments, coef_total, coef_cuota, enabled, valid_from, valid_to) VALUES
+                (1, 1, 1, 1.0, NULL, 1, NULL, NULL),
+                (2, 1, 12, 1.25, NULL, 1, NULL, NULL);
         """
     }
 
@@ -398,9 +463,135 @@ def obtener_stock(formateado=True):
                     continue
                 logger.error(f"Error al obtener stock tras {MAX_RETRIES} intentos: {e}")
                 return []
+
+
+def guardar_simulacion_pago(cart_id, amount_total, currency, items, created_by, status="draft", change_amount=0):
+    """Guarda una simulación de pagos con sus ítems asociados."""
+    for attempt in range(MAX_RETRIES):
+        with conectar_db("payments") as conexion:
+            cursor = conexion.cursor()
+            try:
+                cursor.execute("BEGIN TRANSACTION;")
+                cursor.execute(
+                    """
+                    INSERT INTO sales_payment_simulations (
+                        cart_id, amount_total, currency, created_by, status, change_amount
+                    ) VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (cart_id, amount_total, currency, created_by, status, change_amount),
+                )
+                simulation_id = cursor.lastrowid
+                registros = []
+                for orden, item in enumerate(items, start=1):
+                    registros.append(
+                        (
+                            simulation_id,
+                            item.get("method_code"),
+                            item.get("amount_base"),
+                            item.get("card_brand_id"),
+                            item.get("installments"),
+                            item.get("coef_total"),
+                            item.get("interest_amount", 0),
+                            item.get("amount_final"),
+                            item.get("reference"),
+                            json.dumps(item.get("extra_meta")) if item.get("extra_meta") is not None else None,
+                            orden,
+                        )
+                    )
+                cursor.executemany(
+                    """
+                    INSERT INTO sales_payment_simulation_items (
+                        simulation_id, method_code, amount_base, card_brand_id,
+                        installments, coef_total, interest_amount, amount_final,
+                        reference, extra_meta, sort_order
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    registros,
+                )
+                conexion.commit()
+                logger.info(f"Simulación de pagos guardada con ID {simulation_id}")
+                return simulation_id
+            except sqlite3.OperationalError as e:
+                conexion.rollback()
+                if "database is locked" in str(e) and attempt < MAX_RETRIES - 1:
+                    logger.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
+                    time.sleep(RETRY_DELAY)
+                    continue
+                logger.error(f"Error al guardar simulación de pagos tras {MAX_RETRIES} intentos: {e}")
+                return None
             except sqlite3.Error as e:
-                logger.error(f"Error inesperado al obtener stock de la base de datos: {e}")
-                return []
+                conexion.rollback()
+                logger.error(f"Error inesperado al guardar simulación de pagos: {e}")
+                return None
+
+
+def obtener_simulacion_pago(simulation_id):
+    """Recupera una simulación de pagos completa."""
+    for attempt in range(MAX_RETRIES):
+        with conectar_db("payments") as conexion:
+            cursor = conexion.cursor()
+            try:
+                cursor.execute(
+                    """
+                    SELECT id, cart_id, amount_total, currency, created_at,
+                           created_by, status, change_amount
+                    FROM sales_payment_simulations
+                    WHERE id = ?
+                    """,
+                    (simulation_id,),
+                )
+                simulacion = cursor.fetchone()
+                if not simulacion:
+                    logger.info(f"No se encontró simulación con ID {simulation_id}")
+                    return None
+                cursor.execute(
+                    """
+                    SELECT method_code, amount_base, card_brand_id, installments,
+                           coef_total, interest_amount, amount_final, reference,
+                           extra_meta, sort_order
+                    FROM sales_payment_simulation_items
+                    WHERE simulation_id = ?
+                    ORDER BY sort_order
+                    """,
+                    (simulation_id,),
+                )
+                items = []
+                for row in cursor.fetchall():
+                    items.append(
+                        {
+                            "method_code": row[0],
+                            "amount_base": row[1],
+                            "card_brand_id": row[2],
+                            "installments": row[3],
+                            "coef_total": row[4],
+                            "interest_amount": row[5],
+                            "amount_final": row[6],
+                            "reference": row[7],
+                            "extra_meta": json.loads(row[8]) if row[8] else None,
+                            "sort_order": row[9],
+                        }
+                    )
+                return {
+                    "id": simulacion[0],
+                    "cart_id": simulacion[1],
+                    "amount_total": simulacion[2],
+                    "currency": simulacion[3],
+                    "created_at": simulacion[4],
+                    "created_by": simulacion[5],
+                    "status": simulacion[6],
+                    "change_amount": simulacion[7],
+                    "items": items,
+                }
+            except sqlite3.OperationalError as e:
+                if "database is locked" in str(e) and attempt < MAX_RETRIES - 1:
+                    logger.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
+                    time.sleep(RETRY_DELAY)
+                    continue
+                logger.error(f"Error al obtener simulación de pagos tras {MAX_RETRIES} intentos: {e}")
+                return None
+            except sqlite3.Error as e:
+                logger.error(f"Error inesperado al obtener simulación de pagos: {e}")
+                return None
 
 def obtener_grupos_cumplimiento(store):
     for attempt in range(MAX_RETRIES):

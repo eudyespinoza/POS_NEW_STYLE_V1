@@ -2969,6 +2969,41 @@ function removeClientFromCart() {
     }
 }
 
+async function invoiceCart() {
+    if (!cart.items.length) {
+        showToast('danger', 'El carrito está vacío.');
+        return;
+    }
+
+    showSpinner();
+    try {
+        const total = cart.items
+            .filter(item => item.productId && item.available !== false)
+            .reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+        const payload = {
+            items: cart.items.filter(item => item.productId),
+            client: cart.client || null,
+            total: total
+        };
+
+        const data = await fetchWithAuth('/api/facturar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        showToast('success', `Factura generada: ${data.factura.numero}`);
+        clearCart();
+    } catch (error) {
+        console.error('Error al facturar:', error);
+        showToast('danger', `Error al facturar: ${error.message}`);
+    } finally {
+        toggleCart();
+        hideSpinner();
+    }
+}
+
 async function generatePdfOnly() {
     if (!cart.items.length) {
         showToast('danger', 'El carrito está vacío.');

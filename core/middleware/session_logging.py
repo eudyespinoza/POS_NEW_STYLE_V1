@@ -1,8 +1,8 @@
 # core/middleware/session_logging.py
-import logging
 from django.db.utils import OperationalError
+from services.logging_utils import get_module_logger
 
-logger = logging.getLogger(__name__)
+logger = get_module_logger(__name__)
 
 class SessionSaveLoggingMiddleware:
     """Log context on OperationalError during session save."""

@@ -1,10 +1,10 @@
-import logging
 import os
 import subprocess
 from typing import List
+from services.logging_utils import get_module_logger
 
 OPENSSL_BIN = os.environ.get("OPENSSL_BIN", "openssl")
-logger = logging.getLogger(__name__)
+logger = get_module_logger(__name__)
 
 def run_openssl(args: List[str]) -> str:
     """Run an OpenSSL command and return its standard output.

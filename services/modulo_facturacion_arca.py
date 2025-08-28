@@ -1,8 +1,10 @@
 import os
 import shutil
 import subprocess
-import logging
 from datetime import datetime
+from services.logging_utils import get_module_logger
+
+logger = get_module_logger(__name__)
 
 OPENSSL_BIN = os.getenv("OPENSSL_PATH") or shutil.which("openssl")
 if not OPENSSL_BIN:
@@ -32,7 +34,6 @@ def generar_factura(cliente: dict | None, items: list[dict], total: float) -> di
         dict: Información básica de la factura generada.
     """
 
-    logger = logging.getLogger(__name__)
     numero = datetime.now().strftime("A-%Y%m%d%H%M%S")
     logger.info(
         "Factura %s generada para cliente %s por un total de %.2f",

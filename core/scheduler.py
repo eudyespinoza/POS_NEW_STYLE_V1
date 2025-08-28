@@ -2,7 +2,6 @@
 import os
 import sys
 import time
-import logging
 from typing import Optional, Dict, Tuple
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -45,8 +44,9 @@ from services.config import (
 )
 
 import pyarrow.parquet as pq
+from services.logging_utils import get_module_logger
 
-logger = logging.getLogger(__name__)
+logger = get_module_logger(__name__)
 
 # =============================================================================
 # Marcadores de log (evitar emojis en consolas cp1252)

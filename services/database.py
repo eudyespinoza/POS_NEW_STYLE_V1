@@ -1,6 +1,5 @@
 import sqlite3
 import os
-import logging
 import locale
 import time
 from contextlib import contextmanager
@@ -8,6 +7,7 @@ import pyarrow.parquet as pq
 import pyarrow.compute as pc
 import pyarrow.dataset as ds
 import pyarrow as pa
+from services.logging_utils import get_module_logger
 try:
     from services.config import CACHE_FILE_PRODUCTOS
 except Exception:
@@ -31,21 +31,12 @@ DB_PATHS = {
     "config_impositiva": os.path.join(BASE_DIR, "config_impositiva.db")
 }
 
-LOG_DIR = os.path.join(BASE_DIR, "logs")
-os.makedirs(LOG_DIR, exist_ok=True)
-LOG_FILE = os.path.join(LOG_DIR, "database.log")
-
-logging.basicConfig(
-    filename=LOG_FILE,
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
+logger = get_module_logger(__name__)
 
 try:
     locale.setlocale(locale.LC_ALL, 'es_AR.UTF-8')
 except Exception as e:
-    logging.warning(f"No se pudo aplicar locale es_AR.UTF-8: {e}")
+    logger.warning(f"No se pudo aplicar locale es_AR.UTF-8: {e}")
 
 # Configuración de reintentos
 MAX_RETRIES = 5
@@ -63,15 +54,15 @@ def conectar_db(tabla):
         conexion = sqlite3.connect(db_path, timeout=10)
         conexion.execute("PRAGMA journal_mode=WAL;")
         conexion.execute("PRAGMA synchronous=NORMAL;")
-        logging.info(f"Conectado a la base de datos: {db_path} para tabla {tabla}")
+        logger.info(f"Conectado a la base de datos: {db_path} para tabla {tabla}")
         yield conexion
     except sqlite3.Error as e:
-        logging.error(f"Error al conectar con la base de datos {db_path}: {e}")
+        logger.error(f"Error al conectar con la base de datos {db_path}: {e}")
         raise
     finally:
         if 'conexion' in locals():
             conexion.close()
-            logging.debug(f"Conexión cerrada correctamente para {db_path}.")
+            logger.debug(f"Conexión cerrada correctamente para {db_path}.")
 
 def formatear_moneda(valor):
     if valor is None:
@@ -85,46 +76,46 @@ def obtener_stores_from_parquet():
     for attempt in range(MAX_RETRIES):
         try:
             if not os.path.exists(CACHE_FILE_PRODUCTOS):
-                logging.error(f"El archivo Parquet no existe en la ruta: {CACHE_FILE_PRODUCTOS}")
+                logger.error(f"El archivo Parquet no existe en la ruta: {CACHE_FILE_PRODUCTOS}")
                 return []
             dataset = ds.dataset(CACHE_FILE_PRODUCTOS, format="parquet")
             tbl = dataset.to_table(columns=["store_number"])
             stores = sorted(set(tbl.column("store_number").to_pylist()))
-            logging.info(f"Se obtuvieron {len(stores)} tiendas únicas desde el Parquet.")
+            logger.info(f"Se obtuvieron {len(stores)} tiendas únicas desde el Parquet.")
             return stores
         except Exception as e:
             if attempt < MAX_RETRIES - 1:
-                logging.warning(f"Error al obtener tiendas desde Parquet, reintentando ({attempt + 1}/{MAX_RETRIES})...: {e}")
+                logger.warning(f"Error al obtener tiendas desde Parquet, reintentando ({attempt + 1}/{MAX_RETRIES})...: {e}")
                 time.sleep(RETRY_DELAY)
                 continue
-            logging.error(f"Error al obtener tiendas desde Parquet tras {MAX_RETRIES} intentos: {e}")
+            logger.error(f"Error al obtener tiendas desde Parquet tras {MAX_RETRIES} intentos: {e}")
             return []
 
 def obtener_equivalencia(codigo):
     if not codigo:
-        logging.warning("Falta código para obtener equivalencia.")
+        logger.warning("Falta código para obtener equivalencia.")
         return []
     for attempt in range(MAX_RETRIES):
         try:
             if not os.path.exists(CACHE_FILE_PRODUCTOS):
-                logging.error(f"El archivo Parquet no existe en la ruta: {CACHE_FILE_PRODUCTOS}")
+                logger.error(f"El archivo Parquet no existe en la ruta: {CACHE_FILE_PRODUCTOS}")
                 return []
             dataset = ds.dataset(CACHE_FILE_PRODUCTOS, format="parquet")
             filtro = ds.field("numero_producto") == str(codigo)
             tbl = dataset.to_table(filter=filtro, columns=["multiplo"])
             multiplos = tbl.column("multiplo").to_pylist()
             if not multiplos:
-                logging.info(f"No se encontraron múltiplos para el código {codigo} en el Parquet.")
+                logger.info(f"No se encontraron múltiplos para el código {codigo} en el Parquet.")
                 return []
-            logging.info(f"Se encontraron {len(multiplos)} múltiplos para el código {codigo}: {multiplos}")
+            logger.info(f"Se encontraron {len(multiplos)} múltiplos para el código {codigo}: {multiplos}")
             return multiplos
         except Exception as e:
             if attempt < MAX_RETRIES - 1:
-                logging.warning(
+                logger.warning(
                     f"Error al obtener equivalencia desde Parquet, reintentando ({attempt + 1}/{MAX_RETRIES})...: {e}")
                 time.sleep(RETRY_DELAY)
                 continue
-            logging.error(f"Error al obtener equivalencia desde Parquet tras {MAX_RETRIES} intentos: {e}")
+            logger.error(f"Error al obtener equivalencia desde Parquet tras {MAX_RETRIES} intentos: {e}")
             return []
 
 def init_db():
@@ -228,9 +219,9 @@ def init_db():
             try:
                 cursor.executescript(script)
                 conexion.commit()
-                logging.info(f"Tabla {tabla} verificada/creada exitosamente en {DB_PATHS[tabla]}.")
+                logger.info(f"Tabla {tabla} verificada/creada exitosamente en {DB_PATHS[tabla]}.")
             except sqlite3.Error as e:
-                logging.error(f"Error al inicializar la base de datos para {tabla}: {e}")
+                logger.error(f"Error al inicializar la base de datos para {tabla}: {e}")
 
 def guardar_token_d365(token):
     for attempt in range(MAX_RETRIES):
@@ -245,19 +236,19 @@ def guardar_token_d365(token):
                 else:
                     cursor.execute("INSERT INTO misc (id, token_d365, contador) VALUES (1, ?, NULL)", (token,))
                 conexion.commit()
-                logging.info("Token D365 guardado/actualizado exitosamente.")
+                logger.info("Token D365 guardado/actualizado exitosamente.")
                 return
             except sqlite3.OperationalError as e:
                 conexion.rollback()
                 if "database is locked" in str(e) and attempt < MAX_RETRIES - 1:
-                    logging.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
+                    logger.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
                     time.sleep(RETRY_DELAY)
                     continue
-                logging.error(f"Error al guardar token D365 tras {MAX_RETRIES} intentos: {e}")
+                logger.error(f"Error al guardar token D365 tras {MAX_RETRIES} intentos: {e}")
                 raise
             except sqlite3.Error as e:
                 conexion.rollback()
-                logging.error(f"Error inesperado al guardar token D365: {e}")
+                logger.error(f"Error inesperado al guardar token D365: {e}")
                 raise
 
 def obtener_token_d365():
@@ -268,19 +259,19 @@ def obtener_token_d365():
                 cursor.execute("SELECT token_d365 FROM misc WHERE id = 1")
                 token = cursor.fetchone()
                 if token and token[0]:
-                    logging.info("Token D365 obtenido desde la base de datos.")
+                    logger.info("Token D365 obtenido desde la base de datos.")
                     return token[0]
-                logging.warning("No se encontró token D365 en la base de datos.")
+                logger.warning("No se encontró token D365 en la base de datos.")
                 return None
             except sqlite3.OperationalError as e:
                 if "database is locked" in str(e) and attempt < MAX_RETRIES - 1:
-                    logging.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
+                    logger.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
                     time.sleep(RETRY_DELAY)
                     continue
-                logging.error(f"Error al obtener token D365 tras {MAX_RETRIES} intentos: {e}")
+                logger.error(f"Error al obtener token D365 tras {MAX_RETRIES} intentos: {e}")
                 return None
             except sqlite3.Error as e:
-                logging.error(f"Error inesperado al obtener token D365: {e}")
+                logger.error(f"Error inesperado al obtener token D365: {e}")
                 return None
 
 def obtener_contador_presupuesto():
@@ -299,24 +290,24 @@ def obtener_contador_presupuesto():
                 else:
                     cursor.execute("INSERT INTO misc (id, token_d365, contador) VALUES (1, NULL, ?)", (str(nuevo_contador),))
                 conexion.commit()
-                logging.info(f"Contador de presupuestos actualizado: {nuevo_contador}")
+                logger.info(f"Contador de presupuestos actualizado: {nuevo_contador}")
                 return nuevo_contador
             except sqlite3.OperationalError as e:
                 conexion.rollback()
                 if "database is locked" in str(e) and attempt < MAX_RETRIES - 1:
-                    logging.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
+                    logger.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
                     time.sleep(RETRY_DELAY)
                     continue
-                logging.error(f"Error al actualizar contador tras {MAX_RETRIES} intentos: {e}")
+                logger.error(f"Error al actualizar contador tras {MAX_RETRIES} intentos: {e}")
                 raise
             except sqlite3.Error as e:
                 conexion.rollback()
-                logging.error(f"Error inesperado al obtener/incrementar contador: {e}")
+                logger.error(f"Error inesperado al obtener/incrementar contador: {e}")
                 raise
 
 def agregar_atributos_masivo(lista_atributos):
     if not lista_atributos:
-        logging.info("Lista de atributos vacía, no se insertó nada.")
+        logger.info("Lista de atributos vacía, no se insertó nada.")
         return 0
     for attempt in range(MAX_RETRIES):
         with conectar_db("atributos") as conexion:
@@ -330,19 +321,19 @@ def agregar_atributos_masivo(lista_atributos):
                     VALUES (?, ?, ?, ?);
                 """, lista_atributos)
                 conexion.commit()
-                logging.info(f"Se insertaron {len(lista_atributos)} atributos en SQLite.")
+                logger.info(f"Se insertaron {len(lista_atributos)} atributos en SQLite.")
                 return len(lista_atributos)
             except sqlite3.OperationalError as e:
                 conexion.rollback()
                 if "database is locked" in str(e) and attempt < MAX_RETRIES - 1:
-                    logging.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
+                    logger.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
                     time.sleep(RETRY_DELAY)
                     continue
-                logging.error(f"Error en inserción masiva de atributos tras {MAX_RETRIES} intentos: {e}")
+                logger.error(f"Error en inserción masiva de atributos tras {MAX_RETRIES} intentos: {e}")
                 return 0
             except sqlite3.Error as e:
                 conexion.rollback()
-                logging.error(f"Error inesperado en inserción masiva de atributos: {e}")
+                logger.error(f"Error inesperado en inserción masiva de atributos: {e}")
                 return 0
 
 def obtener_atributos(product_number):
@@ -358,17 +349,17 @@ def obtener_atributos(product_number):
                     {"ProductNumber": row[0], "ProductName": row[1], "AttributeName": row[2], "AttributeValue": row[3]}
                     for row in cursor.fetchall()
                 ]
-                logging.info(f"Se obtuvieron {len(atributos)} atributos para el producto {product_number}.")
+                logger.info(f"Se obtuvieron {len(atributos)} atributos para el producto {product_number}.")
                 return atributos
             except sqlite3.OperationalError as e:
                 if "database is locked" in str(e) and attempt < MAX_RETRIES - 1:
-                    logging.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
+                    logger.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
                     time.sleep(RETRY_DELAY)
                     continue
-                logging.error(f"Error al obtener atributos tras {MAX_RETRIES} intentos: {e}")
+                logger.error(f"Error al obtener atributos tras {MAX_RETRIES} intentos: {e}")
                 return []
             except sqlite3.Error as e:
-                logging.error(f"Error inesperado al obtener atributos para {product_number}: {e}")
+                logger.error(f"Error inesperado al obtener atributos para {product_number}: {e}")
                 return []
 
 def obtener_stock(formateado=True):
@@ -398,17 +389,17 @@ def obtener_stock(formateado=True):
                         "comprometido": float(r[5]) if r[5] is not None else None,
                     }
                 stock_data = [to_row(r) for r in rows]
-                logging.info(f"Se obtuvieron {len(stock_data)} registros de stock.")
+                logger.info(f"Se obtuvieron {len(stock_data)} registros de stock.")
                 return stock_data
             except sqlite3.OperationalError as e:
                 if "database is locked" in str(e) and attempt < MAX_RETRIES - 1:
-                    logging.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
+                    logger.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
                     time.sleep(RETRY_DELAY)
                     continue
-                logging.error(f"Error al obtener stock tras {MAX_RETRIES} intentos: {e}")
+                logger.error(f"Error al obtener stock tras {MAX_RETRIES} intentos: {e}")
                 return []
             except sqlite3.Error as e:
-                logging.error(f"Error inesperado al obtener stock de la base de datos: {e}")
+                logger.error(f"Error inesperado al obtener stock de la base de datos: {e}")
                 return []
 
 def obtener_grupos_cumplimiento(store):
@@ -418,22 +409,22 @@ def obtener_grupos_cumplimiento(store):
             try:
                 cursor.execute("SELECT invent_location_id FROM grupos_cumplimiento WHERE store_locator_group_name = ?", (store,))
                 almacenes_asignados = [row[0] for row in cursor.fetchall()]
-                logging.info(f"Se obtuvieron {len(almacenes_asignados)} almacenes para la tienda {store}.")
+                logger.info(f"Se obtuvieron {len(almacenes_asignados)} almacenes para la tienda {store}.")
                 return almacenes_asignados
             except sqlite3.OperationalError as e:
                 if "database is locked" in str(e) and attempt < MAX_RETRIES - 1:
-                    logging.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
+                    logger.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
                     time.sleep(RETRY_DELAY)
                     continue
-                logging.error(f"Error al obtener grupos tras {MAX_RETRIES} intentos: {e}")
+                logger.error(f"Error al obtener grupos tras {MAX_RETRIES} intentos: {e}")
                 return []
             except sqlite3.Error as e:
-                logging.error(f"Error inesperado al obtener grupos de cumplimiento: {e}")
+                logger.error(f"Error inesperado al obtener grupos de cumplimiento: {e}")
                 return []
 
 def agregar_stock_masivo(lista_stock):
     if not lista_stock:
-        logging.info("Lista de stock vacía, no se insertó nada.")
+        logger.info("Lista de stock vacía, no se insertó nada.")
         return 0
     for attempt in range(MAX_RETRIES):
         with conectar_db("stock") as conexion:
@@ -450,24 +441,24 @@ def agregar_stock_masivo(lista_stock):
                         comprometido=excluded.comprometido;
                 """, lista_stock)
                 conexion.commit()
-                logging.info(f"Se insertaron/actualizaron {len(lista_stock)} registros de stock.")
+                logger.info(f"Se insertaron/actualizaron {len(lista_stock)} registros de stock.")
                 return len(lista_stock)
             except sqlite3.OperationalError as e:
                 conexion.rollback()
                 if "database is locked" in str(e) and attempt < MAX_RETRIES - 1:
-                    logging.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
+                    logger.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
                     time.sleep(RETRY_DELAY)
                     continue
-                logging.error(f"Error en inserción de stock tras {MAX_RETRIES} intentos: {e}")
+                logger.error(f"Error en inserción de stock tras {MAX_RETRIES} intentos: {e}")
                 return 0
             except sqlite3.Error as e:
                 conexion.rollback()
-                logging.error(f"Error inesperado en inserción de stock: {e}")
+                logger.error(f"Error inesperado en inserción de stock: {e}")
                 return 0
 
 def agregar_grupos_cumplimiento_masivo(lista_grupos):
     if not lista_grupos:
-        logging.info("Lista de grupos de cumplimiento vacía, no se insertó nada.")
+        logger.info("Lista de grupos de cumplimiento vacía, no se insertó nada.")
         return 0
     for attempt in range(MAX_RETRIES):
         with conectar_db("grupos_cumplimiento") as conexion:
@@ -482,24 +473,24 @@ def agregar_grupos_cumplimiento_masivo(lista_grupos):
                         invent_location_id=excluded.invent_location_id;
                 """, lista_grupos)
                 conexion.commit()
-                logging.info(f"Se insertaron/actualizaron {len(lista_grupos)} registros en `grupos_cumplimiento`.")
+                logger.info(f"Se insertaron/actualizaron {len(lista_grupos)} registros en `grupos_cumplimiento`.")
                 return len(lista_grupos)
             except sqlite3.OperationalError as e:
                 conexion.rollback()
                 if "database is locked" in str(e) and attempt < MAX_RETRIES - 1:
-                    logging.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
+                    logger.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
                     time.sleep(RETRY_DELAY)
                     continue
-                logging.error(f"Error en inserción de grupos tras {MAX_RETRIES} intentos: {e}")
+                logger.error(f"Error en inserción de grupos tras {MAX_RETRIES} intentos: {e}")
                 return 0
             except sqlite3.Error as e:
                 conexion.rollback()
-                logging.error(f"Error inesperado en inserción/actualización de grupos: {e}")
+                logger.error(f"Error inesperado en inserción/actualización de grupos: {e}")
                 return 0
 
 def agregar_empleados_masivo(lista_empleados):
     if not lista_empleados:
-        logging.info("Lista de empleados vacía, no se insertó nada.")
+        logger.info("Lista de empleados vacía, no se insertó nada.")
         return 0
     dedup = {}
     for emp in lista_empleados:
@@ -508,7 +499,7 @@ def agregar_empleados_masivo(lista_empleados):
             dedup[email] = emp
     lista_empleados_unicos = list(dedup.values())
     if not lista_empleados_unicos:
-        logging.warning("Todos los empleados tienen emails duplicados, no se insertó nada.")
+        logger.warning("Todos los empleados tienen emails duplicados, no se insertó nada.")
         return 0
     for attempt in range(MAX_RETRIES):
         with conectar_db("empleados") as conexion:
@@ -526,19 +517,19 @@ def agregar_empleados_masivo(lista_empleados):
                         numero_sap=excluded.numero_sap;
                 """, lista_empleados_unicos)
                 conexion.commit()
-                logging.info(f"Se insertaron/actualizaron {len(lista_empleados_unicos)} empleados en SQLite.")
+                logger.info(f"Se insertaron/actualizaron {len(lista_empleados_unicos)} empleados en SQLite.")
                 return len(lista_empleados_unicos)
             except sqlite3.OperationalError as e:
                 conexion.rollback()
                 if "database is locked" in str(e) and attempt < MAX_RETRIES - 1:
-                    logging.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
+                    logger.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
                     time.sleep(RETRY_DELAY)
                     continue
-                logging.error(f"Error en inserción masiva de empleados tras {MAX_RETRIES} intentos: {e}")
+                logger.error(f"Error en inserción masiva de empleados tras {MAX_RETRIES} intentos: {e}")
                 return 0
             except sqlite3.Error as e:
                 conexion.rollback()
-                logging.error(f"Error inesperado en inserción masiva de empleados: {e}")
+                logger.error(f"Error inesperado en inserción masiva de empleados: {e}")
                 return 0
 
 def obtener_empleados():
@@ -552,21 +543,21 @@ def obtener_empleados():
                 """)
                 filas = cursor.fetchall()
                 if not filas:
-                    logging.warning("No se encontraron empleados en la base de datos.")
+                    logger.warning("No se encontraron empleados en la base de datos.")
                     return []
                 claves = ["empleado_d365", "id_puesto", "email", "nombre_completo", "numero_sap"]
                 empleados = [dict(zip(claves, fila)) for fila in filas]
-                logging.info(f"Se obtuvieron {len(empleados)} empleados.")
+                logger.info(f"Se obtuvieron {len(empleados)} empleados.")
                 return empleados
             except sqlite3.OperationalError as e:
                 if "database is locked" in str(e) and attempt < MAX_RETRIES - 1:
-                    logging.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
+                    logger.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
                     time.sleep(RETRY_DELAY)
                     continue
-                logging.error(f"Error al obtener empleados tras {MAX_RETRIES} intentos: {e}")
+                logger.error(f"Error al obtener empleados tras {MAX_RETRIES} intentos: {e}")
                 return []
             except sqlite3.Error as e:
-                logging.error(f"Error inesperado al obtener empleados: {e}")
+                logger.error(f"Error inesperado al obtener empleados: {e}")
                 return []
 
 def obtener_empleados_by_email(email):
@@ -580,21 +571,21 @@ def obtener_empleados_by_email(email):
                 """, (email,))
                 filas = cursor.fetchall()
                 if not filas:
-                    logging.warning(f"No se encontraron empleados con el email {email}.")
+                    logger.warning(f"No se encontraron empleados con el email {email}.")
                     return {}
                 claves = ["empleado_d365", "id_puesto", "email", "nombre_completo", "numero_sap", "last_store"]
                 empleado = dict(zip(claves, filas[0]))
-                logging.info(f"Se obtuvo un empleado con email {email}.")
+                logger.info(f"Se obtuvo un empleado con email {email}.")
                 return empleado
             except sqlite3.OperationalError as e:
                 if "database is locked" in str(e) and attempt < MAX_RETRIES - 1:
-                    logging.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
+                    logger.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
                     time.sleep(RETRY_DELAY)
                     continue
-                logging.error(f"Error al obtener empleado tras {MAX_RETRIES} intentos: {e}")
+                logger.error(f"Error al obtener empleado tras {MAX_RETRIES} intentos: {e}")
                 return {}
             except sqlite3.Error as e:
-                logging.error(f"Error inesperado al obtener empleado con email {email}: {e}")
+                logger.error(f"Error inesperado al obtener empleado con email {email}: {e}")
                 return {}
 
 def obtener_todos_atributos():
@@ -608,26 +599,26 @@ def obtener_todos_atributos():
                 """)
                 filas = cursor.fetchall()
                 if not filas:
-                    logging.warning("No se encontraron atributos en la base de datos.")
+                    logger.warning("No se encontraron atributos en la base de datos.")
                     return []
                 atributos = [{"ProductNumber": row[0], "ProductName": row[1], "AttributeName": row[2], "AttributeValue": row[3]}
                              for row in filas]
-                logging.info(f"Se obtuvieron {len(atributos)} atributos en una sola consulta.")
+                logger.info(f"Se obtuvieron {len(atributos)} atributos en una sola consulta.")
                 return atributos
             except sqlite3.OperationalError as e:
                 if "database is locked" in str(e) and attempt < MAX_RETRIES - 1:
-                    logging.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
+                    logger.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
                     time.sleep(RETRY_DELAY)
                     continue
-                logging.error(f"Error al obtener atributos tras {MAX_RETRIES} intentos: {e}")
+                logger.error(f"Error al obtener atributos tras {MAX_RETRIES} intentos: {e}")
                 return []
             except sqlite3.Error as e:
-                logging.error(f"Error inesperado al obtener todos los atributos: {e}")
+                logger.error(f"Error inesperado al obtener todos los atributos: {e}")
                 return []
 
 def agregar_datos_tienda_masivo(lista_tiendas):
     if not lista_tiendas:
-        logging.warning("Lista de tiendas vacía, no se insertó nada.")
+        logger.warning("Lista de tiendas vacía, no se insertó nada.")
         return 0
     for attempt in range(MAX_RETRIES):
         with conectar_db("store_data") as conexion:
@@ -654,19 +645,19 @@ def agregar_datos_tienda_masivo(lista_tiendas):
                 """
                 cursor.executemany(query, lista_tiendas)
                 conexion.commit()
-                logging.info(f"Se insertaron/actualizaron {len(lista_tiendas)} registros de tiendas en SQLite.")
+                logger.info(f"Se insertaron/actualizaron {len(lista_tiendas)} registros de tiendas en SQLite.")
                 return len(lista_tiendas)
             except sqlite3.OperationalError as e:
                 conexion.rollback()
                 if "database is locked" in str(e) and attempt < MAX_RETRIES - 1:
-                    logging.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
+                    logger.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
                     time.sleep(RETRY_DELAY)
                     continue
-                logging.error(f"Error en inserción masiva de tiendas tras {MAX_RETRIES} intentos: {e}")
+                logger.error(f"Error en inserción masiva de tiendas tras {MAX_RETRIES} intentos: {e}")
                 return 0
             except sqlite3.Error as e:
                 conexion.rollback()
-                logging.error(f"Error inesperado en inserción masiva de datos de tiendas: {e}")
+                logger.error(f"Error inesperado en inserción masiva de datos de tiendas: {e}")
                 return 0
 
 def limpiar_direccion(direccion):
@@ -699,19 +690,19 @@ def obtener_datos_tienda_por_id(id_tienda):
                               "direccion_completa_unidad_operativa"]
                     resultado = dict(zip(claves, tienda))
                     resultado["direccion_completa_unidad_operativa"] = limpiar_direccion(resultado["direccion_completa_unidad_operativa"])
-                    logging.info(f"Se encontraron datos para la tienda con id_tienda {id_tienda}.")
+                    logger.info(f"Se encontraron datos para la tienda con id_tienda {id_tienda}.")
                     return resultado
-                logging.warning(f"No se encontraron datos para la tienda con id_tienda {id_tienda}.")
+                logger.warning(f"No se encontraron datos para la tienda con id_tienda {id_tienda}.")
                 return {}
             except sqlite3.OperationalError as e:
                 if "database is locked" in str(e) and attempt < MAX_RETRIES - 1:
-                    logging.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
+                    logger.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
                     time.sleep(RETRY_DELAY)
                     continue
-                logging.error(f"Error al obtener tienda tras {MAX_RETRIES} intentos: {e}")
+                logger.error(f"Error al obtener tienda tras {MAX_RETRIES} intentos: {e}")
                 return {}
             except sqlite3.Error as e:
-                logging.error(f"Error inesperado al obtener datos de la tienda con id_tienda {id_tienda}: {e}")
+                logger.error(f"Error inesperado al obtener datos de la tienda con id_tienda {id_tienda}: {e}")
                 return {}
 
 def actualizar_last_store(email, store_id):
@@ -722,21 +713,21 @@ def actualizar_last_store(email, store_id):
                 cursor.execute("BEGIN TRANSACTION;")
                 cursor.execute("UPDATE empleados SET last_store = ? WHERE email = ?", (store_id, email))
                 if cursor.rowcount == 0:
-                    logging.warning(f"No se encontró empleado con email {email} para actualizar last_store.")
+                    logger.warning(f"No se encontró empleado con email {email} para actualizar last_store.")
                 conexion.commit()
-                logging.info(f"Last_store actualizado a {store_id} para el empleado con email {email}.")
+                logger.info(f"Last_store actualizado a {store_id} para el empleado con email {email}.")
                 return
             except sqlite3.OperationalError as e:
                 conexion.rollback()
                 if "database is locked" in str(e) and attempt < MAX_RETRIES - 1:
-                    logging.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
+                    logger.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
                     time.sleep(RETRY_DELAY)
                     continue
-                logging.error(f"Error al actualizar last_store tras {MAX_RETRIES} intentos: {e}")
+                logger.error(f"Error al actualizar last_store tras {MAX_RETRIES} intentos: {e}")
                 raise
             except sqlite3.Error as e:
                 conexion.rollback()
-                logging.error(f"Error inesperado al actualizar last_store para {email}: {e}")
+                logger.error(f"Error inesperado al actualizar last_store para {email}: {e}")
                 raise
 
 def obtener_contador_pdf():
@@ -755,19 +746,19 @@ def obtener_contador_pdf():
                 else:
                     cursor.execute("INSERT INTO misc (id, token_d365, contador, contador_pdf) VALUES (1, NULL, NULL, ?)", (str(nuevo_contador),))
                 conexion.commit()
-                logging.info(f"Contador de PDFs actualizado: {nuevo_contador}")
+                logger.info(f"Contador de PDFs actualizado: {nuevo_contador}")
                 return nuevo_contador
             except sqlite3.OperationalError as e:
                 conexion.rollback()
                 if "database is locked" in str(e) and attempt < MAX_RETRIES - 1:
-                    logging.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
+                    logger.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
                     time.sleep(RETRY_DELAY)
                     continue
-                logging.error(f"Error al actualizar contador_pdf tras {MAX_RETRIES} intentos: {e}")
+                logger.error(f"Error al actualizar contador_pdf tras {MAX_RETRIES} intentos: {e}")
                 raise
             except sqlite3.Error as e:
                 conexion.rollback()
-                logging.error(f"Error inesperado al obtener/incrementar contador_pdf: {e}")
+                logger.error(f"Error inesperado al obtener/incrementar contador_pdf: {e}")
                 raise
 
 def save_cart(user_id, cart, timestamp):
@@ -786,19 +777,19 @@ def save_cart(user_id, cart, timestamp):
                         timestamp = excluded.timestamp;
                 """, (user_id, cart_json, timestamp))
                 conexion.commit()
-                logging.info(f"Carrito guardado para user_id {user_id} con timestamp {timestamp}")
+                logger.info(f"Carrito guardado para user_id {user_id} con timestamp {timestamp}")
                 return True
             except sqlite3.OperationalError as e:
                 conexion.rollback()
                 if "database is locked" in str(e) and attempt < MAX_RETRIES - 1:
-                    logging.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
+                    logger.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
                     time.sleep(RETRY_DELAY)
                     continue
-                logging.error(f"Error al guardar carrito tras {MAX_RETRIES} intentos: {e}")
+                logger.error(f"Error al guardar carrito tras {MAX_RETRIES} intentos: {e}")
                 return False
             except sqlite3.Error as e:
                 conexion.rollback()
-                logging.error(f"Error inesperado al guardar carrito: {e}")
+                logger.error(f"Error inesperado al guardar carrito: {e}")
                 return False
 
 def get_cart(user_id):
@@ -814,17 +805,17 @@ def get_cart(user_id):
                 if result:
                     cart = json.loads(result[0])
                     timestamp = result[1]
-                    logging.info(f"Carrito recuperado para user_id {user_id} con timestamp {timestamp}")
+                    logger.info(f"Carrito recuperado para user_id {user_id} con timestamp {timestamp}")
                     return {"cart": cart, "timestamp": timestamp}
-                logging.info(f"No se encontró carrito para user_id {user_id}")
+                logger.info(f"No se encontró carrito para user_id {user_id}")
                 return {"cart": {"items": [], "client": None, "quotation_id": None, "type": "new", "observations": ""}, "timestamp": None}
             except sqlite3.OperationalError as e:
                 if "database is locked" in str(e) and attempt < MAX_RETRIES - 1:
-                    logging.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
+                    logger.warning(f"Base de datos bloqueada, reintentando ({attempt + 1}/{MAX_RETRIES})...")
                     time.sleep(RETRY_DELAY)
                     continue
-                logging.error(f"Error al recuperar carrito tras {MAX_RETRIES} intentos: {e}")
+                logger.error(f"Error al recuperar carrito tras {MAX_RETRIES} intentos: {e}")
                 return {"cart": {"items": [], "client": None, "quotation_id": None, "type": "new", "observations": ""}, "timestamp": None}
             except sqlite3.Error as e:
-                logging.error(f"Error inesperado al recuperar carrito: {e}")
+                logger.error(f"Error inesperado al recuperar carrito: {e}")
                 return {"cart": {"items": [], "client": None, "quotation_id": None, "type": "new", "observations": ""}, "timestamp": None}

@@ -1,7 +1,6 @@
 # core/views.py
 import os
 import json
-import logging
 import datetime
 from datetime import timezone, timedelta
 from typing import List, Dict
@@ -57,6 +56,7 @@ from services.config import (
     CACHE_FILE_ATRIBUTOS,
 )
 from services.modulo_facturacion_arca import generar_factura
+from services.logging_utils import get_module_logger
 
 # Importa utilidades del scheduler (NO de services.caching)
 from .scheduler import (
@@ -69,7 +69,7 @@ from .scheduler import (
 
 from .models import SecuenciaNumerica
 
-logger = logging.getLogger(__name__)
+logger = get_module_logger(__name__)
 
 
 class SecuenciaNumericaForm(forms.ModelForm):

@@ -1,17 +1,9 @@
-import os, smtplib, datetime, logging, configparser
+import os, smtplib, datetime, configparser
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from services.logging_utils import get_module_logger
 
-# Configuración básica de logging (puedes ajustarla según necesites)
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.FileHandler(os.path.join(os.path.dirname(__file__), '../app.log')),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
+logger = get_module_logger(__name__)
 
 def load_email_config():
     """Carga la configuración de correo desde config.ini."""
@@ -75,6 +67,11 @@ def enviar_correo_fallo(proceso, error):
             server.login(smtp_user, smtp_password)
             server.sendmail(smtp_user, destinatarios, msg.as_string())
 
-        logger.info(f"Correo de fallo enviado a {', '.join(destinatarios)} para el proceso '{proceso}'")
+        logger.info(
+            f"Correo de fallo enviado a {', '.join(destinatarios)} para el proceso '{proceso}'"
+        )
     except Exception as e:
-        logger.error(f"Error al enviar el correo de fallo para el proceso '{proceso}': {e}", exc_info=True)
+        logger.error(
+            f"Error al enviar el correo de fallo para el proceso '{proceso}': {e}",
+            exc_info=True,
+        )

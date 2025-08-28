@@ -1,8 +1,8 @@
 import requests
 import configparser
 import os
-import logging
 from django.http import JsonResponse
+from services.logging_utils import get_module_logger
 
 # Obtén la ruta absoluta a la raíz del proyecto
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -12,16 +12,7 @@ CONFIG_PATH = os.path.join(os.path.dirname(ROOT_DIR), 'config.ini')  # Config.in
 config = configparser.ConfigParser()
 config.read(CONFIG_PATH)
 
-LOG_DIR = os.path.join(ROOT_DIR, "logs")
-os.makedirs(LOG_DIR, exist_ok=True)
-LOG_FILE = os.path.join(LOG_DIR, "d365_interface.log")
-
-logging.basicConfig(
-    filename=LOG_FILE,
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
+logger = get_module_logger(__name__)
 
 
 class TokenRetrievalError(Exception):
@@ -69,11 +60,11 @@ def get_access_token_d365():
 
         token_data = response.json()
         access_token = token_data['access_token']
-        logging.info(f"Consulta token a D365 OK")
+        logger.info("Consulta token a D365 OK")
         return access_token
 
     except requests.RequestException as e:
-        logging.error(f"Consulta token a D365 FALLO. {e}")
+        logger.error(f"Consulta token a D365 FALLO. {e}")
         raise TokenRetrievalError("No se pudo obtener el token de acceso") from e
 
 
@@ -97,9 +88,9 @@ def get_access_token_d365_qa():
 
         token_data = response.json()
         access_token = token_data['access_token']
-        logging.info(f"Consulta token a D365 OK")
+        logger.info("Consulta token a D365 OK")
         return access_token
 
     except requests.RequestException as e:
-        logging.error(f"Consulta token a D365 FALLO. {e}")
+        logger.error(f"Consulta token a D365 FALLO. {e}")
         raise TokenRetrievalError("No se pudo obtener el token de acceso") from e

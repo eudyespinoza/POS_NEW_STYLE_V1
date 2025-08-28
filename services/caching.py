@@ -6,8 +6,8 @@ usadas por el scheduler.
 """
 import os
 import datetime
-import logging
 from functools import lru_cache
+from services.logging_utils import get_module_logger
 
 import requests
 import pyarrow as pa
@@ -20,7 +20,7 @@ from services.database import (
     obtener_todos_atributos,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_module_logger(__name__)
 
 # ----------------------------------------------------------------------
 # Rutas de archivos de caché

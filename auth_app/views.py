@@ -1,8 +1,8 @@
 # auth_app/views.py
 import os
 import configparser
-import logging
 from pathlib import Path
+from services.logging_utils import get_module_logger
 
 from ldap3 import Connection
 from ldap3.core.exceptions import LDAPException, LDAPBindError
@@ -15,7 +15,7 @@ from django.views.decorators.http import require_http_methods
 
 from services.database import obtener_empleados_by_email
 
-logger = logging.getLogger(__name__)
+logger = get_module_logger(__name__)
 
 
 # ============ Helpers LDAP (equivalente a auth_module.py, sin Flask) ============
@@ -114,56 +114,55 @@ def login_view(request):
     - GET: muestra login.html
     """
     if request.method == "POST":
-        username = (request.POST.get("username") or "").strip().lower()
-        password = request.POST.get("password") or ""
+        try:
+            username = (request.POST.get("username") or "").strip().lower()
+            password = request.POST.get("password") or ""
 
-        if not username or not password:
-            messages.error(request, "Debes ingresar usuario y contraseña.")
+            if not username or not password:
+                messages.error(request, "Debes ingresar usuario y contraseña.")
+                return render(request, "login.html")
+
+            ok, err, mail = _ldap_authenticate(username, password)
+            if not ok:
+                messages.error(request, f"Credenciales incorrectas: {err}")
+                return render(request, "login.html")
+
+            datos = obtener_empleados_by_email(mail) or {}
+            if not datos:
+                messages.error(request, "No se encontraron datos del empleado en la base de datos.")
+                return render(request, "login.html")
+
+            nombre_completo = datos.get("nombre_completo") or username
+            email = datos.get("email") or mail
+            id_puesto = datos.get("id_puesto")
+            empleado_d365 = datos.get("empleado_d365")
+            numero_sap = datos.get("numero_sap")
+            last_store = datos.get("last_store")
+
+            request.session["usuario"] = nombre_completo
+            request.session["id_puesto"] = id_puesto
+            request.session["empleado_d365"] = empleado_d365
+            request.session["numero_sap"] = numero_sap
+            request.session["email"] = email
+            request.session["last_store"] = last_store
+            request.session.set_expiry(60 * 60 * 4)
+
+            User = get_user_model()
+            user, _ = User.objects.get_or_create(
+                username=email, defaults={"email": email, "is_active": True}
+            )
+            if not user.email:
+                user.email = email
+                user.save(update_fields=["email"])
+            dj_login(request, user)
+
+            messages.success(request, "Iniciaste sesión con éxito.")
+            next_url = request.GET.get("next") or reverse("core:home")
+            return redirect(next_url)
+        except Exception as e:
+            logger.exception("Fallo inesperado en login_view: %s", e)
+            messages.error(request, "Ocurrió un error inesperado. Intenta nuevamente.")
             return render(request, "login.html")
-
-        ok, err, mail = _ldap_authenticate(username, password)
-        if not ok:
-            messages.error(request, f"Credenciales incorrectas: {err}")
-            return render(request, "login.html")
-
-        # === Trae datos del empleado desde SQLite (tu misma función) ===
-        datos = obtener_empleados_by_email(mail) or {}
-        if not datos:
-            messages.error(request, "No se encontraron datos del empleado en la base de datos.")
-            return render(request, "login.html")
-
-        # Extrae campos tal cual Flask
-        nombre_completo = datos.get("nombre_completo") or username
-        email = datos.get("email") or mail
-        id_puesto = datos.get("id_puesto")
-        empleado_d365 = datos.get("empleado_d365")
-        numero_sap = datos.get("numero_sap")
-        last_store = datos.get("last_store")
-
-        # === Guarda en sesión (claves idénticas a Flask) ===
-        request.session["usuario"] = nombre_completo
-        request.session["id_puesto"] = id_puesto
-        request.session["empleado_d365"] = empleado_d365
-        request.session["numero_sap"] = numero_sap
-        request.session["email"] = email
-        request.session["last_store"] = last_store
-        # expira en 4 horas como tu root()
-        request.session.set_expiry(60 * 60 * 4)
-
-        # === Crea/inicia sesión de un User de Django (para @login_required) ===
-        User = get_user_model()
-        user, _ = User.objects.get_or_create(username=email, defaults={"email": email, "is_active": True})
-        # Si ya existía pero sin email, lo completamos
-        if not user.email:
-            user.email = email
-            user.save(update_fields=["email"])
-        dj_login(request, user)
-
-        messages.success(request, "Iniciaste sesión con éxito.")
-
-        # respeta ?next=/ ... o ve al home real
-        next_url = request.GET.get("next") or reverse("core:home")
-        return redirect(next_url)
 
     # GET
     return render(request, "login.html")

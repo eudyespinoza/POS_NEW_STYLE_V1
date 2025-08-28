@@ -1,10 +1,10 @@
 # core/apps.py
 import os
-import logging
 from django.apps import AppConfig
 from django.conf import settings
+from services.logging_utils import get_module_logger
 
-logger = logging.getLogger(__name__)
+logger = get_module_logger(__name__)
 
 # Evita doble ejecución en runserver (autoreloader)
 def _is_main_process() -> bool:

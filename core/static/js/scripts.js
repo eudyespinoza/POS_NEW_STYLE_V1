@@ -3072,15 +3072,15 @@ function openPaymentSimulator() {
         const modalEl = document.getElementById('paymentSimulatorModal');
         const frame = document.getElementById('paymentSimulatorFrame');
         if (!modalEl || !frame || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
-            window.open(`/simulador/?total=${total}`, '_blank');
+            window.open(`/payments/simulator/?total=${total}`, '_blank');
             return;
         }
-        frame.src = `/simulador/?total=${total}`;
+        frame.src = `/payments/simulator/?total=${total}`;
         const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
         modal.show();
     } catch (err) {
         console.error('Error al abrir simulador de pagos:', err);
-        window.open(`/simulador/?total=${total}`, '_blank');
+        window.open(`/payments/simulator/?total=${total}`, '_blank');
     }
 }
 

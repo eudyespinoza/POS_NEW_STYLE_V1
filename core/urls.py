@@ -1,6 +1,7 @@
 # core/urls.py
 from django.urls import path
 from . import views
+from payments import views as payment_views
 
 app_name = "core"
 
@@ -57,4 +58,6 @@ urlpatterns = [
     path('config/modos-entrega/<int:pk>/editar/', views.modo_entrega_update, name='modo_entrega_update'),
     path('config/modos-entrega/<int:pk>/eliminar/', views.modo_entrega_delete, name='modo_entrega_delete'),
 
+    path('payments/simulator/', payment_views.simulator_page, name='payment_simulator'),
+    path('payments/config/', payment_views.config_index, name='payments_config'),
 ]

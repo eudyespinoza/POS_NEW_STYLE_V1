@@ -1,6 +1,8 @@
 import os
 import shutil
 import subprocess
+import logging
+from datetime import datetime
 
 OPENSSL_BIN = os.getenv("OPENSSL_PATH") or shutil.which("openssl")
 if not OPENSSL_BIN:
@@ -12,3 +14,35 @@ def ejecutar_openssl(*args: str) -> subprocess.CompletedProcess:
     """Ejecuta OpenSSL con los argumentos proporcionados."""
     cmd = [OPENSSL_BIN, *args]
     return subprocess.run(cmd, capture_output=True, text=True, check=True)
+
+
+def generar_factura(cliente: dict | None, items: list[dict], total: float) -> dict:
+    """Genera una factura electrónica usando el módulo ARCA.
+
+    Esta implementación es un *stub* que simula la integración con el
+    servicio real de AFIP/ARCA. Devuelve un número de factura ficticio y
+    datos mínimos necesarios para continuar el flujo de venta.
+
+    Args:
+        cliente: Datos del cliente o ``None`` para consumidor final.
+        items: Lista de ítems del carrito.
+        total: Importe total de la factura.
+
+    Returns:
+        dict: Información básica de la factura generada.
+    """
+
+    logger = logging.getLogger(__name__)
+    numero = datetime.now().strftime("A-%Y%m%d%H%M%S")
+    logger.info(
+        "Factura %s generada para cliente %s por un total de %.2f",
+        numero,
+        (cliente or {}).get("numero_cliente", "consumidor final"),
+        total,
+    )
+
+    return {
+        "numero": numero,
+        "cae": "00000000000000",
+        "vencimiento": datetime.now().strftime("%Y-%m-%d"),
+    }

@@ -21,6 +21,7 @@ urlpatterns = [
     path('api/datos_tienda/<str:store_id>', views.api_datos_tienda, name='api_datos_tienda'),
     path('api/user_info', views.api_user_info, name='api_user_info'),
     path('api/generate_pdf_quotation_id', views.api_generate_pdf_quotation_id, name='api_generate_pdf_quotation_id'),
+    path('api/facturar', views.api_facturar, name='api_facturar'),
 
     path('api/clientes/create', views.api_clientes_create, name='api_clientes_create'),
     path('api/clientes/search', views.api_clientes_search, name='api_clientes_search'),

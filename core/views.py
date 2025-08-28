@@ -56,6 +56,7 @@ from services.config import (
     CACHE_FILE_CLIENTES,
     CACHE_FILE_ATRIBUTOS,
 )
+from services.modulo_facturacion_arca import generar_factura
 
 # Importa utilidades del scheduler (NO de services.caching)
 from .scheduler import (
@@ -391,6 +392,27 @@ def api_generate_pdf_quotation_id(request):
     except Exception as e:
         logger.exception("api_generate_pdf_quotation_id")
         enviar_correo_fallo("generate_pdf_quotation_id", str(e))
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+# ======== API: facturar carrito ========
+@csrf_exempt
+@require_POST
+@login_required
+def api_facturar(request):
+    """Genera una factura electrónica a partir del contenido del carrito."""
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+        items = data.get("items") or []
+        if not items:
+            return JsonResponse({"error": "El carrito está vacío"}, status=400)
+        total = float(data.get("total") or 0)
+        cliente = data.get("client")
+        factura = generar_factura(cliente, items, total)
+        return JsonResponse({"factura": factura})
+    except Exception as e:
+        logger.exception("api_facturar")
+        enviar_correo_fallo("facturar", str(e))
         return JsonResponse({"error": str(e)}, status=500)
 
 # ======== API: crear cliente en D365 ========

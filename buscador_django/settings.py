@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     # Apps del proyecto
     'auth_app',
     'core.apps.CoreConfig',  # usa solo el AppConfig (no dupliques 'core')
+    'payments.apps.PaymentsConfig',
 ]
 
 MIDDLEWARE = [

@@ -4,6 +4,9 @@ from django.http import JsonResponse, HttpResponseBadRequest
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.forms.models import model_to_dict
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required, permission_required
+
 
 from .models import (
     PaymentMethod,
@@ -195,3 +198,15 @@ def get_simulation(request, pk: int):
         for item in simulation.items.all().order_by("sort_order")
     ]
     return JsonResponse(data)
+
+@login_required
+def simulator_page(request):
+    total = request.GET.get("total", "0")
+    return render(request, "payments/simulator.html", {"total": total})
+
+
+@login_required
+@permission_required("payments.view_paymentmethod", raise_exception=True)
+def config_index(request):
+    return render(request, "payments/config/index.html")
+

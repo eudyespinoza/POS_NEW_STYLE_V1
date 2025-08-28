@@ -52,6 +52,7 @@
           <a href="{% url 'core:secuencias_list' %}" class="nav-link text-light">Secuencias</a>
           <a href="{% url 'core:tipos_contribuyente_list' %}" class="nav-link text-light">Tipos de Contribuyente</a>
           <a href="{% url 'core:modo_entrega_list' %}" class="nav-link text-light">Modos de Entrega</a>
+          <a href="{% url 'core:payments_config' %}" class="nav-link text-light">Pagos</a>
         {% endif %}
         {% if request.user.is_authenticated %}
           <span class="navbar-text text-light session-info">Hola, {{ request.session.usuario }}</span>

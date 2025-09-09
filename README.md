@@ -7,6 +7,7 @@ Esta guía funcional y técnica cubre instalación, configuración, arquitectura
 ## Tabla de contenidos
 
 - Requisitos y arranque rápido
+- Ejecución con Docker
 - Configuración (.env) y variables
 - Arquitectura y módulos
 - Datos y cachés (Parquet/SQLite)
@@ -31,6 +32,17 @@ Esta guía funcional y técnica cubre instalación, configuración, arquitectura
 - Ejecutar: `python manage.py runserver`
 
 En el arranque, `core.apps.CoreConfig.ready()` inicializa SQLite y arranca el scheduler. En la primera ejecución, se dispara un bootstrap paralelo para construir Parquet de datos base.
+
+## Ejecución con Docker
+
+Para levantar el proyecto sin instalar dependencias localmente:
+
+```bash
+docker build -t pos .
+docker run -p 8000:8000 pos
+```
+
+El servidor estará disponible en `http://localhost:8000`.
 
 ## Configuración (.env) y variables
 

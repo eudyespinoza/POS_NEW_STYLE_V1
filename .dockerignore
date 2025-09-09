@@ -1,0 +1,7 @@
+.git
+__pycache__
+*.pyc
+.env
+sessions/
+bootstrap_done.flag
+*.sqlite3

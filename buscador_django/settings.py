@@ -87,7 +87,7 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'  # para collectstatic en deploy
 
 # Login (usa namespaces definidos en urls)
 LOGIN_URL = 'auth_app:login'
-LOGIN_REDIRECT_URL = 'core:home'
+LOGIN_REDIRECT_URL = 'core:pos_retail'
 LOGOUT_REDIRECT_URL = 'auth_app:login'
 
 # Logs básicos de Django (además de los que ya usas en services/)
@@ -127,3 +127,11 @@ SESSION_FILE_DIR.mkdir(parents=True, exist_ok=True)
 SESSION_FILE_PATH = str(SESSION_FILE_DIR)
 SESSION_COOKIE_AGE = 60 * 60 * 4  # 4 horas
 SESSION_SAVE_EVERY_REQUEST = True
+
+# URL base del simulador externo (ERP V5)
+# Permite abrir la pantalla del simulador del ERP corriendo en el puerto 8001.
+# Se puede sobrescribir con la variable de entorno SIMULATOR_V5_EXTERNAL_BASE_URL
+SIMULATOR_V5_EXTERNAL_BASE_URL = os.environ.get(
+    'SIMULATOR_V5_EXTERNAL_BASE_URL',
+    'http://localhost:8001/maestros/simulador/'
+)

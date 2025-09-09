@@ -1,0 +1,37 @@
+{% extends "layout.html" %}
+{% block title %}Descuentos{% endblock %}
+{% block content %}
+<div class="container py-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h5 m-0">Descuentos</h1>
+    <a href="{% url 'core:config_discount_create' %}" class="btn btn-primary btn-sm">Nuevo</a>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm table-striped align-middle">
+      <thead>
+        <tr><th>Id</th><th>%</th><th>Método</th><th>Marca</th><th>Vigencia</th><th>Estado</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for d in items %}
+        <tr>
+          <td>{{ d.id }}</td>
+          <td>{{ d.pct }}</td>
+          <td>{{ d.method_name }}</td>
+          <td>{{ d.brand }}</td>
+          <td>{% if d.ValidFrom %}{{ d.ValidFrom }}{% else %}-{% endif %} / {% if d.ValidTo %}{{ d.ValidTo }}{% else %}-{% endif %}</td>
+          <td>{% if d.enabled %}<span class="badge bg-success">Activo</span>{% else %}<span class="badge bg-secondary">Inactivo</span>{% endif %}</td>
+          <td class="text-end">
+            <a href="{% url 'core:config_discount_update' d.id %}" class="btn btn-outline-primary btn-sm">Editar</a>
+            <a href="{% url 'core:config_discount_toggle' d.id %}" class="btn btn-outline-secondary btn-sm">Toggle</a>
+            <a href="{% url 'core:config_discount_delete' d.id %}" class="btn btn-outline-danger btn-sm">Eliminar</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center text-muted">Sin registros</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+

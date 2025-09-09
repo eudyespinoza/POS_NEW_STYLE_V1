@@ -1,0 +1,49 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}Admin | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+  <link rel="stylesheet" href="{% static 'css/pos_retail.css' %}">
+  <style>
+    body { background-color: var(--background-color); color: var(--text-color); }
+    #header, .breadcrumbs { background: var(--navbar-bg, #1a1d21); color: var(--btn-outline-light, #f8f9fa); }
+    #header a:link, #header a:visited { color: var(--btn-outline-light, #f8f9fa); }
+    .module, .module caption, .module table { background-color: var(--card-bg); color: var(--text-color); }
+    .module table th, .module table td { border-color: var(--input-border); }
+    .module h2, .app-{{ app_label }} .section { color: var(--text-color); }
+    .dashboard .module table tr:nth-child(odd) { background-color: var(--table-stripe); }
+    .button, input[type=submit], .submit-row input { background: var(--btn-primary-bg); border-color: var(--btn-primary-bg); color: #fff; }
+    .button.default, .submit-row input.default { background: var(--btn-primary-hover); border-color: var(--btn-primary-hover); }
+    a, a:link, a:visited { color: var(--text-color); }
+    .selector-chosen h2, .selector-available h2 { color: var(--text-color); }
+  </style>
+{% endblock %}
+
+{% block extrahead %}
+  {{ block.super }}
+  <script>
+    (function(){
+      try{
+        var saved = localStorage.getItem('theme') || 'dark';
+        document.body.classList.remove('light-mode','dark-mode');
+        document.body.classList.add(saved === 'dark' ? 'dark-mode' : 'light-mode');
+        document.documentElement.setAttribute('data-bs-theme', saved);
+      }catch(e){}
+    })();
+  </script>
+{% endblock %}
+
+{% block nav-global %}
+  {{ block.super }}
+  <div class="px-3 py-1">
+    <a href="{% url 'core:config_bancos_list' %}" class="me-2">Bancos</a>
+    <a href="{% url 'core:config_metodos_list' %}" class="me-2">Métodos</a>
+    <a href="{% url 'core:config_cards_list' %}" class="me-2">Tarjetas</a>
+    <a href="{% url 'core:config_acquirers_list' %}" class="me-2">Adquirentes</a>
+    <a href="{% url 'core:config_discounts_list' %}" class="me-2">Descuentos</a>
+    <a href="{% url 'core:config_plans_list' %}" class="me-2">Planes</a>
+  </div>
+{% endblock %}

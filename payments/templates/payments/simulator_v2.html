@@ -1,0 +1,319 @@
+{% extends 'simulador_base.html' %}
+{% load static %}
+{% block title %}Simulador de Pagos{% endblock %}
+{% block extra_head %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
+{% endblock %}
+{% block content %}
+<div class="container py-3" id="simulatorApp">
+  <h1 class="h4 mb-3">Simulador de Pagos</h1>
+
+  <div class="alert alert-info py-2 mb-3">
+    Total del carrito: <strong id="totalCarrito">{{ total }}</strong>
+  </div>
+
+  <div class="card shadow-sm mb-3">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h2 class="h6 m-0">Medios de pago</h2>
+        <button id="btnAddItem" class="btn btn-sm btn-primary">
+          <i class="bi bi-plus"></i> Agregar pago
+        </button>
+      </div>
+
+      <div id="itemsContainer" class="d-flex flex-column gap-2"></div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <h3 class="h6">Resumen</h3>
+          <ul class="list-unstyled m-0">
+            <li class="d-flex justify-content-between"><span>Subtotal base</span><span id="resSubtotal" class="mono">$ 0,00</span></li>
+            <li class="d-flex justify-content-between"><span>Intereses</span><span id="resInteres" class="mono">$ 0,00</span></li>
+            <li class="d-flex justify-content-between fw-bold"><span>Total a cobrar</span><span id="resTotalCobrar" class="mono">$ 0,00</span></li>
+            <li class="d-flex justify-content-between"><span>Vuelto</span><span id="resVuelto" class="mono">$ 0,00</span></li>
+            <li class="d-flex justify-content-between"><span>Restante</span><span id="resRestante" class="mono">$ 0,00</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <h3 class="h6">Acciones</h3>
+          <div class="d-flex gap-2">
+            <button id="btnCalcular" class="btn btn-outline-primary">Calcular</button>
+            <button id="btnConfirmar" class="btn btn-success" disabled>Confirmar</button>
+          </div>
+          <div id="msg" class="mt-3"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm" id="detalleCard" style="display:none;">
+    <div class="card-body">
+      <h3 class="h6">Detalle</h3>
+      <div class="table-responsive">
+        <table class="table table-sm table-striped align-middle">
+          <thead>
+            <tr>
+              <th>Método</th>
+              <th class="text-end">Monto base</th>
+              <th class="text-end">Interés</th>
+              <th class="text-end">Monto final</th>
+              <th>Cuotas</th>
+              <th>Marca</th>
+            </tr>
+          </thead>
+          <tbody id="detalleBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  #simulatorApp .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+  #simulatorApp .item-row { border: 1px solid #eee; border-radius: .5rem; padding: .75rem; }
+  #simulatorApp .item-row .form-label { font-size: .85rem; }
+  #simulatorApp .item-row .remove { opacity: .8; }
+</style>
+
+<script>
+  (function(){
+    const formatMoney = (n) => {
+      const v = Number(n || 0);
+      return v.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' });
+    };
+
+    function parseAmount(raw) {
+      if (typeof raw === 'number') return raw;
+      const s = String(raw ?? '').trim();
+      if (s.match(/^\d{1,3}(\.\d{3})*,\d{1,2}$/)) {
+        return parseFloat(s.replace(/\./g, '').replace(',', '.')) || 0;
+      }
+      const n = parseFloat(s);
+      return isNaN(n) ? 0 : n;
+    }
+
+    const state = {
+      total: parseAmount(`{{ total|escapejs }}`),
+      items: [],
+      config: null,
+      lastBreakdown: null,
+    };
+
+    const el = (id) => document.getElementById(id);
+    const itemsContainer = el('itemsContainer');
+    const msg = el('msg');
+
+    function showMsg(type, text) {
+      msg.innerHTML = `<div class="alert alert-${type} py-2">${text}</div>`;
+    }
+
+    async function loadConfig() {
+      try {
+        const resp = await fetch('/api/payments/config');
+        if (!resp.ok) throw new Error('No se pudo obtener configuración');
+        state.config = await resp.json();
+      } catch (e) {
+        console.error(e);
+        showMsg('danger', 'Error cargando configuración de pagos');
+      }
+    }
+
+    function methodSelect(value) {
+      const sel = document.createElement('select');
+      sel.className = 'form-select form-select-sm metodo';
+      [
+        {v:'cash', t:'Efectivo'},
+        {v:'debit', t:'Débito'},
+        {v:'transfer', t:'Transferencia'},
+        {v:'check', t:'Cheque'},
+        {v:'credit', t:'Crédito'},
+      ].forEach(opt => {
+        const o = document.createElement('option'); o.value = opt.v; o.textContent = opt.t; sel.appendChild(o);
+      });
+      sel.value = value || 'cash';
+      return sel;
+    }
+
+    function brandSelect(value) {
+      const sel = document.createElement('select');
+      sel.className = 'form-select form-select-sm brand';
+      const def = document.createElement('option'); def.value=''; def.textContent='-- Marca --'; sel.appendChild(def);
+      (state.config?.brands || []).filter(b => b.enabled).forEach(b => {
+        const o = document.createElement('option'); o.value = b.id; o.textContent = b.name; sel.appendChild(o);
+      });
+      sel.value = value || '';
+      return sel;
+    }
+
+    function installmentsSelect(value) {
+      const sel = document.createElement('select');
+      sel.className = 'form-select form-select-sm installments';
+      const def = document.createElement('option'); def.value=''; def.textContent='-- Cuotas --'; sel.appendChild(def);
+      const uniq = new Set((state.config?.credit_plans || []).map(p => p.installments));
+      Array.from(uniq).sort((a,b)=>a-b).forEach(n => { const o=document.createElement('option'); o.value=n; o.textContent=n; sel.appendChild(o); });
+      sel.value = value || '';
+      return sel;
+    }
+
+    function calcRemainingBase(ignoreIndex = -1) {
+      const sum = state.items.reduce((a, it, idx) => a + (idx === ignoreIndex ? 0 : (Number(it.amount_base) || 0)), 0);
+      return Math.max(0, state.total - sum);
+    }
+
+    function renderItems() {
+      itemsContainer.innerHTML = '';
+      state.items.forEach((it, idx) => {
+        const row = document.createElement('div');
+        row.className = 'item-row';
+        row.innerHTML = `
+          <div class="row g-2 align-items-end">
+            <div class="col-12 col-md-3">
+              <label class="form-label">Método</label>
+              <div class="wrap-metodo"></div>
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label d-flex justify-content-between align-items-center">Monto
+                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill completar">Completar restante</button>
+              </label>
+              <input type="number" step="0.01" min="0" class="form-control form-control-sm monto" value="${it.amount_base||0}">
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label">Marca</label>
+              <div class="wrap-brand"></div>
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label">Cuotas</label>
+              <div class="wrap-installments"></div>
+            </div>
+            <div class="col-6 col-md-2 d-grid">
+              <button class="btn btn-outline-danger btn-sm remove"><i class="bi bi-trash"></i></button>
+            </div>
+          </div>`;
+
+        // attach selects
+        const selMet = methodSelect(it.method);
+        const selBra = brandSelect(it.brand_id);
+        const selIns = installmentsSelect(it.installments);
+        row.querySelector('.wrap-metodo').appendChild(selMet);
+        row.querySelector('.wrap-brand').appendChild(selBra);
+        row.querySelector('.wrap-installments').appendChild(selIns);
+
+        function toggleCreditFields() {
+          const credit = selMet.value === 'credit';
+          selBra.disabled = !credit; selIns.disabled = !credit;
+        }
+        toggleCreditFields();
+
+        // listeners
+        selMet.addEventListener('change', () => { it.method = selMet.value; toggleCreditFields(); });
+        selBra.addEventListener('change', () => { it.brand_id = Number(selBra.value)||null; });
+        selIns.addEventListener('change', () => { it.installments = Number(selIns.value)||null; });
+        row.querySelector('.monto').addEventListener('input', (e) => { it.amount_base = Number(e.target.value||0); });
+        row.querySelector('.completar').addEventListener('click', () => {
+          const rest = calcRemainingBase(idx);
+          it.amount_base = Math.max(0, parseFloat(rest.toFixed(2)));
+          row.querySelector('.monto').value = it.amount_base;
+        });
+        row.querySelector('.remove').addEventListener('click', () => { state.items.splice(idx,1); renderItems(); });
+
+        itemsContainer.appendChild(row);
+      });
+    }
+
+    function addItem() {
+      state.items.push({ method: 'cash', amount_base: 0, brand_id: null, installments: null });
+      renderItems();
+    }
+
+    async function calcular() {
+      try {
+        showMsg('info', 'Calculando...');
+        const payload = {
+          amount_total: state.total,
+          items: state.items.map(i => ({
+            method: i.method === 'credit' ? 'credit' : 'cash',
+            amount_base: i.amount_base || 0,
+            brand_id: i.method === 'credit' ? i.brand_id : null,
+            installments: i.method === 'credit' ? i.installments : null,
+          })),
+        };
+        const resp = await fetch('/api/payments/simulate', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) });
+        if (!resp.ok) throw new Error('Fallo en simulación');
+        const data = await resp.json();
+        state.lastBreakdown = data.breakdown;
+        pintarResultados();
+        showMsg('success', 'Cálculo realizado.');
+        el('btnConfirmar').disabled = false;
+      } catch (e) {
+        console.error(e);
+        showMsg('danger', 'No se pudo calcular. Ver consola.');
+        el('btnConfirmar').disabled = true;
+      }
+    }
+
+    function pintarResultados() {
+      const bd = state.lastBreakdown || { items: [], subtotal_base:0, total_interest:0, total_to_charge:0, change_amount:0, remaining:0 };
+      el('resSubtotal').textContent = formatMoney(bd.subtotal_base);
+      el('resInteres').textContent = formatMoney(bd.total_interest);
+      el('resTotalCobrar').textContent = formatMoney(bd.total_to_charge);
+      el('resVuelto').textContent = formatMoney(bd.change_amount);
+      el('resRestante').textContent = formatMoney(bd.remaining);
+
+      const tbody = el('detalleBody');
+      tbody.innerHTML = '';
+      (bd.items||[]).forEach(it => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${it.method}</td>
+          <td class="text-end">${formatMoney(it.amount_base)}</td>
+          <td class="text-end">${formatMoney(it.interest_amount)}</td>
+          <td class="text-end">${formatMoney(it.amount_final)}</td>
+          <td>${it.installments || '-'}</td>
+          <td>${it.brand_id || '-'}</td>`;
+        tbody.appendChild(tr);
+      });
+      el('detalleCard').style.display = (bd.items||[]).length ? '' : 'none';
+    }
+
+    async function confirmar() {
+      if (!state.lastBreakdown) { showMsg('warning', 'Primero calcule la simulación.'); return; }
+      try {
+        showMsg('info', 'Confirmando...');
+        const payload = {
+          cart_id: null,
+          amount_total: state.total,
+          currency: 'ARS',
+          breakdown: state.lastBreakdown,
+        };
+        const resp = await fetch('/api/payments/confirm', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) });
+        if (!resp.ok) throw new Error('Fallo al confirmar');
+        const data = await resp.json();
+        showMsg('success', `Simulación confirmada. ID: <strong>${data.simulation_id}</strong>`);
+      } catch (e) {
+        console.error(e);
+        showMsg('danger', 'No se pudo confirmar.');
+      }
+    }
+
+    // init
+    document.addEventListener('DOMContentLoaded', async () => {
+      el('totalCarrito').textContent = formatMoney(state.total);
+      await loadConfig();
+      addItem();
+    });
+
+    // events
+    el('btnAddItem').addEventListener('click', addItem);
+    el('btnCalcular').addEventListener('click', calcular);
+    el('btnConfirmar').addEventListener('click', confirmar);
+  })();
+</script>
+{% endblock %}

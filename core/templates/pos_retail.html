@@ -1,0 +1,697 @@
+﻿{% load static %}
+<!doctype html>
+<html lang="es" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <title>POS Retail - Cat&aacute;logo &amp; Carrito</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <!-- Estilos propios -->
+  <link rel="stylesheet" href="{% static 'css/pos_retail.css' %}">
+  <!-- Leaflet (mapa, para agregar dirección con geolocalización) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <style>
+    /* Alinear el encabezado del modal de cliente con el tema general (no azul) */
+    #clientSearchModal .modal-header { background-color: var(--bs-body-bg) !important; color: var(--bs-body-color) !important; }
+    /* Blur suave en backdrop de todos los modales */
+    .modal-backdrop.show {
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      background-color: rgba(0,0,0,0.35);
+    }
+  </style>
+</head>
+<body class="bg-body-tertiary">
+
+  <!-- Barra superior -->
+  <nav class="navbar navbar-expand-lg border-bottom sticky-top bg-body shadow-sm">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="{% url 'core:home' %}">
+        <img src="{% static 'img/logo_0.png' %}" alt="Logo Familia Bercomat" height="40">
+      </a>
+
+      <div class="d-flex align-items-center gap-2 ms-auto">
+        <button id="btnToggleTheme" class="btn btn-outline-secondary" title="Cambiar tema (Claro/Oscuro)">
+          <i class="bi bi-moon-stars"></i>
+        </button>
+        <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalAtajos" title="Atajos (F1)">
+          <i class="bi bi-keyboard"></i>
+        </button>
+        <button class="btn btn-outline-secondary" data-bs-toggle="offcanvas" data-bs-target="#offCarrito" aria-controls="offCarrito" title="Abrir Carrito (F2)">
+          <i class="bi bi-cart3"></i>
+          <span id="badgeCount" class="badge text-bg-primary rounded-pill ms-1">0</span>
+        </button>
+        {% if request.user.is_authenticated %}
+          <span class="navbar-text session-info">Hola, {{ request.session.usuario }}</span>
+          <a href="{% url 'auth_app:logout' %}" class="btn btn-outline-secondary">Cerrar Sesi&oacute;n</a>
+        {% else %}
+          <a href="{% url 'auth_app:login' %}" class="btn btn-outline-secondary">Iniciar Sesi&oacute;n</a>
+        {% endif %}
+      </div>
+    </div>
+  </nav>
+
+  <!-- Contenido principal -->
+  <main class="container-fluid py-3">
+    <div class="row g-3 align-items-start">
+      <!-- Panel filtros / bÃºsqueda -->
+      <div class="col-12">
+        <div class="card shadow-lg border-0 mb-3">
+          <div class="card-body pb-4">
+            <!-- Toolbar compacta -->
+            <div class="d-flex gap-2 align-items-center mb-2">
+              <div class="flex-grow-1">
+                <div class="input-group input-group-sm search-floating">
+                  <span class="input-group-text bg-transparent border-0"><i class="bi bi-search"></i></span>
+                  <input id="inputBuscar" type="text" class="form-control form-control-sm border-0" placeholder="Buscar por nombre, SKU, categor&iacute;a... (Ctrl + K)">
+                </div>
+              </div>
+              <div class="d-none d-md-block" style="min-width: 180px;">
+                <select id="selectOrden" class="form-select form-select-sm">
+                  <option value="relevancia">Relevancia</option>
+                  <option value="precio_asc">Precio menor primero</option>
+                  <option value="precio_desc">Precio mayor primero</option>
+                  <option value="nombre_asc">Alfab&eacute;tico (A&ndash;Z)</option>
+                </select>
+              </div>
+              <div class="d-none">
+                <select id="sortOrder" class="form-select form-select-sm">
+                  <option value="relevancia">Relevancia</option>
+                  <option value="precio_asc">Precio menor primero</option>
+                  <option value="precio_desc">Precio mayor primero</option>
+                  <option value="alfabetico">Alfab&eacute;tico (A&ndash;Z)</option>
+                </select>
+              </div>
+              <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target=".advancedFilters" aria-expanded="false" aria-controls="advancedFilters" title="M&aacute;s filtros">
+                <i class="bi bi-funnel"></i>
+              </button>
+              <button id="btnLimpiarFiltros" class="btn btn-outline-secondary" type="button" title="Limpiar filtros">
+                <i class="bi bi-eraser"></i>
+              </button>
+            </div>
+            <!-- Chips de filtros activos -->
+            <div id="activeFiltersChips" class="d-flex flex-wrap gap-2 mb-2"></div>
+            <div class="row g-2 align-items-end collapse advancedFilters mb-2">
+              <div class="col-12 col-md-2">
+                <label class="form-label">Sucursal</label>
+                <select id="storeFilterRetail" class="form-select">
+                  {% for store in stores %}
+                    <option value="{{ store }}" {% if store == last_store %}selected{% endif %}>{{ store }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-6 col-md-2">
+                <label class="form-label">C&oacute;digo de barras</label>
+                <input id="inputBarcode" type="text" class="form-control" placeholder="Escanear (Enter)">
+              </div>
+              <div class="col-6 col-md-2">
+                <label class="form-label">Categor&iacute;a</label>
+                <select id="selectCategoria" class="form-select">
+                  <option value="">Todas</option>
+                </select>
+              </div><div class="col-6 col-md-2 d-grid">
+                <button id="btnLimpiarFiltrosSec" class="btn btn-outline-secondary"><!--dup-->
+                  <i class="bi bi-eraser"></i> Limpiar
+                </button>
+              </div>
+            </div>
+            </div>
+            <div class="row g-2 mt-2 collapse advancedFilters mb-2">
+              <div class="col-12 col-md-3">
+                <label class="form-label">Grupo Cobertura</label>
+                <select id="coverageGroupFilterRetail" class="form-select">
+                  <option value="">Todos</option>
+                </select>
+              </div>
+              <div class="col-12 col-md-4">
+                <label class="form-label">Precio (m&iacute;n - m&aacute;x)</label>
+                <div class="d-flex gap-2">
+                  <input type="number" id="minPriceRetail" class="form-control" placeholder="Min" min="0" step="0.01">
+                  <input type="number" id="maxPriceRetail" class="form-control" placeholder="Max" min="0" step="0.01">
+                </div>
+              </div>
+              <div class="col-12 col-md-5 align-self-end">
+                <div class="d-flex gap-3">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="stockPos" checked>
+                    <label class="form-check-label" for="stockPos">Stock positivo</label>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="stockZero" checked>
+                    <label class="form-check-label" for="stockZero">Stock cero</label>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="stockNeg" checked>
+                    <label class="form-check-label" for="stockNeg">Stock negativo</label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CatÃ¡logo -->
+      <div class="col-12">
+        <div id="gridCatalogo" class="row row-cols-2 row-cols-sm-3 row-cols-lg-4 row-cols-xl-5 g-3">
+          <!-- Tarjetas generadas por JS -->
+        </div>
+        <div id="paginationRetail" class="pagination-retail d-flex justify-content-center mt-3"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Offcanvas Carrito -->
+  <div class="offcanvas offcanvas-end offcanvas-fullscreen" tabindex="-1" id="offCarrito" aria-labelledby="offCarritoLabel">
+    <div class="offcanvas-header border-bottom">
+      <h5 class="offcanvas-title d-flex align-items-center gap-2" id="offCarritoLabel">
+        <i class="bi bi-cart3"></i> Carrito
+      </h5>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Cerrar"></button>
+    </div>
+    <div class="offcanvas-body d-flex flex-column gap-3">
+      <!-- Cliente -->
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="small text-secondary">Cliente</div>
+              <div id="lblCliente" class="fw-medium">Consumidor final</div>
+              <div id="lblClienteDoc" class="small text-secondary"></div>
+              <div id="lblClienteContacto" class="small text-secondary"></div>
+              <div id="lblClienteDireccion" class="small text-secondary"></div>
+            </div>
+            <div class="d-flex gap-2">
+              <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#clientSearchModal">
+                <i class="bi bi-person-plus"></i> Seleccionar
+              </button>
+              <button id="btnLimpiarCliente" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-person-x"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Items -->
+      <div class="card border-0 shadow-sm flex-grow-1">
+        <div class="card-header bg-body-secondary">Productos</div>
+        <div class="card-body p-0">
+          <div id="listCarrito" class="list-group list-group-flush">
+            <!-- Items por JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Totales -->
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between"><span>Subtotal</span><span id="totSubtotal">$ 0,00</span></div>
+          <div class="d-flex justify-content-between"><span>Descuentos</span><span id="totDescuentos">$ 0,00</span></div>
+          <div class="d-flex justify-content-between"><span>Impuestos</span><span id="totImpuestos">$ 0,00</span></div>
+          <div class="d-flex justify-content-between fw-bold fs-5 mt-2"><span>Total</span><span id="totTotal">$ 0,00</span></div>
+          <div class="d-flex justify-content-between small text-secondary mt-1">
+            <span>Peso / &Iacute;tems</span><span id="totPeso">0 kg / 0</span>
+          </div>
+
+          <div class="mt-3">
+            <label for="cartObservationsRetail" class="form-label">Observaciones</label>
+            <textarea id="cartObservationsRetail" class="form-control" rows="2" placeholder="Ingrese observaciones"></textarea>
+          </div>
+
+          <div class="d-flex gap-2 mt-3 flex-wrap">
+            <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalDescuentos">
+              <i class="bi bi-percent"></i> Descuento (F6)
+            </button>
+            <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalLogistica">
+              <i class="bi bi-truck"></i> Log&iacute;stica (F7)
+            </button>
+            <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalSimV5" onclick="try{openExternalSimulator()}catch(e){}">
+              <i class="bi bi-credit-card-2-front"></i> Simular pago (F8)
+            </button>
+            <button id="btnPresupuesto" class="btn btn-outline-primary">
+              <i class="bi bi-file-earmark-text"></i> Presupuesto (F9)
+            </button>
+            <button id="btnFacturar" class="btn btn-primary">
+              <i class="bi bi-receipt"></i> Facturar (F10)
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Clientes (definido más abajo como #clientSearchModal) -->
+
+    <!-- Modal: Descuentos -->
+  <div class="modal fade" id="modalDescuentos" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xxl modal-dialog-centered">
+      <div class="modal-content shadow-lg">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-percent"></i> Descuentos</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label" for="descPorcentaje">Porcentaje (%)</label>
+              <input id="descPorcentaje" type="number" class="form-control" step="0.01" min="0" max="100" placeholder="0">
+            </div>
+            <div class="col-6">
+              <label class="form-label" for="descMonto">Monto fijo</label>
+              <input id="descMonto" type="number" class="form-control" step="0.01" min="0" placeholder="0">
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="descMotivo">Motivo</label>
+              <input id="descMotivo" type="text" class="form-control" placeholder="Promoción, fidelización, etc.">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btnAplicarDescuento" class="btn btn-primary">Aplicar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+    <!-- Modal: Logística -->
+  <div class="modal fade" id="modalLogistica" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xxl modal-dialog-centered">
+      <div class="modal-content shadow-lg">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-truck"></i> Logística / Entrega</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3 align-items-start">
+            <div class="col-12 col-md-4">
+              <label class="form-label" for="logTipoEntrega">Tipo de entrega</label>
+              <select id="logTipoEntrega" class="form-select">
+                <option value="retiro">Retiro en tienda</option>
+                <option value="envio">Envío a domicilio</option>
+                <option value="programada">Entrega programada</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label" for="logSucursal">Sucursal</label>
+              <select id="logSucursal" class="form-select">
+                <option>Central</option>
+                <option>Paraná</option>
+                <option>Santa Fe</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label" for="logFecha">Fecha/Hora</label>
+              <input id="logFecha" type="datetime-local" class="form-control">
+            </div>
+
+            <!-- Sección: Direcciones del cliente (visible solo si 'envio') -->
+            <div id="envioDireccionesSection" class="col-12" style="display:none;">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <label class="form-label m-0">Direcciones del cliente</label>
+                <div>
+                  <button type="button" id="btnAddDireccion" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-plus"></i> Agregar dirección
+                  </button>
+                </div>
+              </div>
+              <div id="listaDireccionesCliente" class="list-group mb-2"></div>
+              <!-- Formulario inline para agregar/editar dirección -->
+              <div id="formDireccionContainer" class="card border-0 shadow-sm d-none">
+                <div class="card-body">
+                  <div class="row g-2">
+                    <div class="col-12">
+                      <label class="form-label" for="inputNuevaDireccion">Dirección completa</label>
+                      <input id="inputNuevaDireccion" type="text" class="form-control" placeholder="Calle, número, ciudad, CP">
+                    </div>
+                    <div class="col-12 d-flex gap-2">
+                      <button type="button" id="btnGuardarDireccion" class="btn btn-sm btn-primary">Guardar</button>
+                      <button type="button" id="btnCancelarDireccion" class="btn btn-sm btn-outline-secondary">Cancelar</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label" for="logDireccion">Dirección (si envío)</label>
+              <input id="logDireccion" type="text" class="form-control" placeholder="Calle, número, ciudad, CP">
+            </div>
+
+            <div class="col-6">
+              <label class="form-label" for="logCosto">Costo envío</label>
+              <input id="logCosto" type="number" class="form-control" min="0" step="0.01" value="0">
+            </div>
+            <div class="col-6">
+              <label class="form-label" for="logObs">Observaciones</label>
+              <input id="logObs" type="text" class="form-control" placeholder="Indicación al repartidor, etc.">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btnAplicarLogistica" class="btn btn-primary">Aplicar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Modal: Simulador de pagos -->
+  <div class="modal fade" id="modalPagos" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xxl modal-dialog-centered">
+      <div class="modal-content shadow-lg">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-credit-card-2-front"></i> Simulador de pagos multipago</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-info">
+            Total a cubrir: <strong id="simTotal">$ 0,00</strong> â€” Restante: <strong id="simRestante">$ 0,00</strong>
+          </div>
+
+          <div id="contenedorPagos" class="vstack gap-2">
+            <!-- filas de pago (JS) -->
+          </div>
+
+          <div class="d-flex justify-content-between mt-3">
+            <button id="btnAgregarPago" class="btn btn-outline-secondary"><i class="bi bi-plus-circle"></i> Agregar medio</button>
+            <button id="btnLimpiarPagos" class="btn btn-outline-danger"><i class="bi bi-trash"></i> Limpiar</button>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btnConfirmarPagos" class="btn btn-primary">Confirmar simulaciÃ³n</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Atajos -->
+  <div class="modal fade" id="modalAtajos" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xxl modal-dialog-centered">
+      <div class="modal-content shadow-lg">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-keyboard"></i> Atajos de teclado</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <ul class="list-group list-group-flush">
+            <li class="list-group-item">F1: Ayuda / Atajos</li>
+            <li class="list-group-item">F2: Abrir Carrito</li>
+            <li class="list-group-item">F6: Descuentos</li>
+            <li class="list-group-item">F7: Log&iacute;stica</li>
+            <li class="list-group-item">F8: Simular Pago</li>
+            <li class="list-group-item">F9: Generar Presupuesto (Imprimir)</li>
+            <li class="list-group-item">F10: Facturar</li>
+            <li class="list-group-item">Ctrl + K: Foco en bÃºsqueda</li>
+            <li class="list-group-item">Enter en \&#39;C&oacute;digo de barras\&#39;: agrega al carrito si coincide</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ãrea oculta: Presupuesto/Comprobante imprimible -->
+  <iframe id="printFrame" class="d-none"></iframe>
+
+  <!-- Modal de imagen producto -->
+  <div class="modal fade" id="imageModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content modal-product">
+        <div class="modal-body position-relative p-0">
+          <button type="button" class="btn-close position-absolute end-0 m-2" data-bs-dismiss="modal" aria-label="Close"></button>
+          <img id="modalImage" src="" class="w-100" alt="Producto">
+          <div class="position-absolute top-50 start-0 translate-middle-y p-2">
+            <button id="imgPrev" class="btn btn-dark">â€¹</button>
+          </div>
+          <div class="position-absolute top-50 end-0 translate-middle-y p-2">
+            <button id="imgNext" class="btn btn-dark">â€º</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Stock -->
+  <div class="modal fade" id="stockModalRetail" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xxl modal-dialog-centered">
+      <div class="modal-content modal-product">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-box-seam me-2"></i> Stock por almacÃ©n â€” <span id="stockProdTitle"></span></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="table-responsive">
+            <table class="table table-striped table-hover">
+              <thead><tr><th>AlmacÃ©n</th><th>Disponible Venta</th><th>Disponible Entrega</th><th>Comprometido</th></tr></thead>
+              <tbody id="stockModalBody"></tbody>
+              <tfoot>
+                <tr><th>Total</th><th id="totalVentaRetail">0,00</th><th id="totalEntregaRetail">0,00</th><th id="totalCompRetail">0,00</th></tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Detalle Producto -->
+  <div class="modal fade" id="productDetailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xxl modal-dialog-centered">
+      <div class="modal-content modal-product">
+        <div class="modal-header">
+          <h5 class="modal-title" id="productDetailsTitle"></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <h6 class="mb-1">Descripci&oacute;n</h6>
+            <div id="productDetailsDesc" class="text-body-secondary"></div>
+          </div>
+          <div class="row g-3 align-items-start">
+            <div class="col-md-6">
+              <div class="ratio ratio-4x3 bg-body-secondary rounded position-relative image-zoom">
+                <img id="productDetailsImage" src="" class="w-100 h-100" alt="Producto">
+                <button type="button" id="pdImgPrev" class="btn btn-dark nav-btn rounded-circle position-absolute top-50 start-0 translate-middle-y ms-2" title="Anterior" aria-label="Anterior">
+                  <i class="bi bi-chevron-left"></i>
+                </button>
+                <button type="button" id="pdImgNext" class="btn btn-dark nav-btn rounded-circle position-absolute top-50 end-0 translate-middle-y me-2" title="Siguiente" aria-label="Siguiente">
+                  <i class="bi bi-chevron-right"></i>
+                </button>
+              </div>
+              <div id="productDetailsThumbs" class="d-flex gap-2 mt-2 overflow-auto"></div>
+            </div>
+            <div class="col-md-6">
+              <div class="price-display mb-2">
+                <i class="bi bi-cash-coin me-2"></i>
+                <span id="productDetailsPrice"></span>
+              </div>
+              <div class="d-flex justify-content-end mb-2">
+                <button type="button" class="btn btn-primary" id="btnAddFromDetails">
+                  <i class="bi bi-cart-plus me-2"></i> Agregar al Carrito
+                </button>
+              </div>
+              <div class="info-badges d-flex flex-wrap gap-2 mb-2">
+                <span class="badge rounded-pill bg-light text-body-secondary">
+                  <i class="bi bi-upc me-1"></i><span id="productDetailsSku"></span>
+                </span>
+                <span class="badge rounded-pill bg-light text-body-secondary">
+                  <i class="bi bi-tags me-1"></i><span id="productDetailsCat"></span>
+                </span>
+                <span class="badge rounded-pill bg-light text-body-secondary">
+                  <i class="bi bi-layers me-1"></i><span id="productDetailsCov"></span>
+                </span>
+                <span class="badge rounded-pill" id="productDetailsStock"></span>
+              </div>
+              <div id="productDetailsQuickSpecs" class="small text-body-secondary mb-3"></div>
+            </div>
+          </div>
+          <!-- Atributos: ancho completo, 3 columnas en pantallas grandes -->
+          <div id="productDetailsAttrsGroups" class="row g-3 mt-2"></div>
+        </div>
+        
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal cantidad (agregar al carrito) -->
+  <div id="quantityModalRetail" class="modal fade" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+      <div class="modal-content modal-product">
+        <div class="modal-header">
+          <h6 class="modal-title"><i class="bi bi-cart-plus me-2"></i> Agregar al Carrito</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="product-name mb-1" id="quantityModalProductNameRetail"></p>
+          <p class="price-info mb-3">Precio: <span id="quantityModalProductPriceRetail" class="fw-bold text-success"></span></p>
+          <div class="quantity-input-group">
+            <label class="form-label">Cantidad:</label>
+            <div class="input-group">
+              <button class="btn btn-outline-secondary" id="btnQtyDecRetail"><i class="bi bi-dash"></i></button>
+              <input type="number" id="quantityInputRetail" class="form-control text-center" min="1" value="1">
+              <span class="input-group-text" id="quantityModalUnitMeasureRetail"></span>
+              <button class="btn btn-outline-secondary" id="btnQtyIncRetail"><i class="bi bi-plus"></i></button>
+            </div>
+            <p id="quantityModalCajasRetail" class="equivalencia-texto mt-2"></p>
+          </div>
+          <p class="total-info mt-3">Total: <span id="quantityModalTotalRetail" class="fw-bold text-primary"></span></p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="btnQtyAddRetail">Agregar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal bÃºsqueda de clientes (equivalente al original) -->
+  <div id="clientSearchModal" class="modal fade client-search-modal" tabindex="-1" aria-labelledby="clientSearchModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xxl modal-dialog-centered">
+      <div class="modal-content shadow-lg border-0">
+        <div class="modal-header bg-body text-body">
+          <h5 class="modal-title" id="clientSearchModalLabel"><i class="bi bi-person me-2"></i> Buscar Cliente</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="input-group mb-4">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" id="clientSearchInput" class="form-control" placeholder="Buscar por DNI o ID Cliente" autocomplete="off">
+          </div>
+          <div id="clientSearchResults" class="list-group" style="max-height: 300px; overflow-y: auto;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Simulador de pagos V5 (externo) -->
+  <div class="modal fade" id="modalSimV5" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xxl modal-dialog-centered">
+      <div class="modal-content modal-product">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-credit-card-2-front me-2"></i> Simulador de Pagos</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body p-0" style="height:80vh;">
+          <iframe id="simV5Frame" src="about:blank" style="border:0;width:100%;height:100%;"></iframe>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Nueva Dirección (con geolocalización) -->
+  <div class="modal fade" id="modalDireccionGeo" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-geo-alt"></i> Nueva dirección de entrega</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <div class="row g-2">
+                <div class="col-6">
+                  <label class="form-label" for="addrZip">Código Postal</label>
+                  <input id="addrZip" type="text" class="form-control" placeholder="CP">
+                </div>
+                <div class="col-6">
+                  <label class="form-label" for="addrCitySelect">Ciudad</label>
+                  <select id="addrCitySelect" class="form-select">
+                    <option value="">Seleccione</option>
+                  </select>
+                </div>
+                <div class="col-8">
+                  <label class="form-label" for="addrStreet">Calle</label>
+                  <input id="addrStreet" type="text" class="form-control" placeholder="Calle">
+                </div>
+                <div class="col-4">
+                  <label class="form-label" for="addrNumber">Altura</label>
+                  <input id="addrNumber" type="text" class="form-control" placeholder="Número">
+                </div>
+                <div class="col-12">
+                  <label class="form-label" for="addrRef">Referencia</label>
+                  <input id="addrRef" type="text" class="form-control" placeholder="Piso, Dpto, entre calles, etc.">
+                </div>
+                <div class="col-6">
+                  <label class="form-label" for="addrLat">Latitud</label>
+                  <input id="addrLat" type="text" class="form-control" readonly>
+                </div>
+                <div class="col-6">
+                  <label class="form-label" for="addrLng">Longitud</label>
+                  <input id="addrLng" type="text" class="form-control" readonly>
+                </div>
+                <div class="col-12">
+                  <small id="addrGeoStatus" class="text-secondary"></small>
+                </div>
+              </div>
+            </div>
+            <div class="col-12 col-md-6">
+              <div id="addrMap" style="height: 380px;" class="rounded border"></div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="btnAddrSave">Guardar dirección</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS + Popper (local fallback first) -->
+  <script src="{% static 'vendor/bootstrap/bootstrap.bundle.min.js' %}"></script>
+  <script>
+    // Si por alguna razn no carg la local, intentar CDN
+    if (!window.bootstrap || !window.bootstrap.Modal) {
+      var s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js';
+      document.currentScript.parentNode.insertBefore(s, document.currentScript.nextSibling);
+    }
+  </script>
+  <!-- jsPDF + AutoTable (para generar Presupuesto en PDF) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <!-- Config global: URL simulador externo (ERP V5 en 8001) -->
+  <script>
+    window.SIMULATOR_EXT_URL = '{{ simulator_v5_external_base_url }}';
+    if (window.SIMULATOR_EXT_URL && !window.SIMULATOR_EXT_URL.endsWith('/')) {
+      window.SIMULATOR_EXT_URL = window.SIMULATOR_EXT_URL + '/';
+    }
+    if (['None','null','undefined'].includes(String(window.SIMULATOR_EXT_URL))) {
+      window.SIMULATOR_EXT_URL = '';
+    }
+    if ('{{ simulator_v5_external_base_url }}' === '') {
+      window.SIMULATOR_EXT_URL = '';
+    }
+    // Alias compat
+    window.SIMULATOR_V5_URL = window.SIMULATOR_EXT_URL;
+  </script>
+  <!-- App -->
+  <script src="{% static 'js/pos_retail.js' %}"></script>
+  {{ stores|json_script:"backend-stores-data" }}
+  {{ last_store|json_script:"backend-last-store-data" }}
+  <script src="{% static 'js/pdf_pos.js' %}"></script>
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

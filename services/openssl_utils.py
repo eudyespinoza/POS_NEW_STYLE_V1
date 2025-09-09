@@ -3,7 +3,7 @@ import subprocess
 from typing import List
 from services.logging_utils import get_module_logger
 
-OPENSSL_BIN = os.environ.get("OPENSSL_BIN", "openssl")
+OPENSSL_BIN = "C:\\Program Files\\OpenSSL-Win64\\bin"
 logger = get_module_logger(__name__)
 
 def run_openssl(args: List[str]) -> str:

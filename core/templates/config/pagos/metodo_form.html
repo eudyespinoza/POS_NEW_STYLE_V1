@@ -1,0 +1,35 @@
+{% extends "layout.html" %}
+{% block title %}Método de pago{% endblock %}
+{% block content %}
+<div class="container py-3">
+  <h1 class="h5 mb-3">{{ metodo.id|default:'Nuevo método' }}</h1>
+  {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+  <form method="post">{% csrf_token %}
+    <div class="row g-3">
+      <div class="col-md-3">
+        <label class="form-label">Código</label>
+        <input name="code" class="form-control" value="{{ metodo.code }}" required>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Nombre</label>
+        <input name="name" class="form-control" value="{{ metodo.name }}" required>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Función</label>
+        <input name="function" class="form-control" value="{{ metodo.function }}" placeholder="cash/card/transfer/etc">
+      </div>
+      <div class="col-md-3 d-flex align-items-end">
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="enabled" id="enabled" {% if metodo.enabled %}checked{% endif %}>
+          <label class="form-check-label" for="enabled">Activo</label>
+        </div>
+      </div>
+    </div>
+    <div class="mt-3">
+      <a href="{% url 'core:config_metodos_list' %}" class="btn btn-outline-secondary">Volver</a>
+      <button class="btn btn-primary" type="submit">Guardar</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+

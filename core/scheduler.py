@@ -20,6 +20,7 @@ from services.caching import (
     actualizar_cache_stock,
     actualizar_cache_empleados,
     actualizar_cache_atributos,
+    actualizar_cache_codigos_postales,
 )
 
 # ETLs / lecturas desde Fabric
@@ -41,6 +42,7 @@ from services.config import (
     CACHE_FILE_CLIENTES,
     CACHE_FILE_STOCK,
     CACHE_FILE_ATRIBUTOS,
+    CACHE_FILE_CODIGOS_POSTALES,
 )
 
 import pyarrow.parquet as pq
@@ -129,6 +131,9 @@ def load_parquet_stock():
 def load_parquet_atributos():
     return _load_parquet_cached(CACHE_FILE_ATRIBUTOS)
 
+def load_parquet_codigos_postales():
+    return _load_parquet_cached(CACHE_FILE_CODIGOS_POSTALES)
+
 # Compatibilidad histórica (si alguna parte del front aún la usa)
 def obtener_productos_cache():
     return load_parquet_productos()
@@ -207,6 +212,7 @@ def bootstrap_parallel(max_workers: Optional[int] = None):
         ("stock + cache_stock",         _run_step_chain,  obtener_stock_fabric,       actualizar_cache_stock),
         ("atributos + cache_atributos", _run_step_chain,  obtener_atributos_fabric,   actualizar_cache_atributos),
         ("empleados + cache_empleados", _run_step_chain,  obtener_empleados_fabric,   actualizar_cache_empleados),
+        ("codigos_postales + cache",    _run_step,        actualizar_cache_codigos_postales),
     ]
 
     # Ejecutar en paralelo
@@ -270,6 +276,11 @@ def start_scheduler_and_jobs():
     scheduler.add_job(obtener_datos_tiendas,
                       CronTrigger(day_of_week="sat", hour=22, minute=30),
                       id="datos_tiendas")
+
+    # Mensual (padrón de códigos postales): día 1 a las 05:15
+    scheduler.add_job(actualizar_cache_codigos_postales,
+                      CronTrigger(day=1, hour=5, minute=15),
+                      id="codigos_postales")
 
     # Arrancar si no está ya corriendo
     if not scheduler.running:

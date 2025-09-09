@@ -1,0 +1,525 @@
+
+<!DOCTYPE html>
+<html lang="es" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="cache-control" content="no-cache, no-store, must-revalidate">
+  <meta name="pragma" content="no-cache">
+  <meta name="expires" content="0">
+  <title>Inicio de Sesión</title>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Bootstrap CSS + Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
+  <!-- noUiSlider CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.css" crossorigin="anonymous">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
+  <script src="https://kit.fontawesome.com/42d5adcbca.js" crossorigin="anonymous"></script>
+
+  <!-- Estilos propios -->
+  <link rel="stylesheet" href="/static/css/styles.css">
+  <link rel="stylesheet" href="/static/css/pos_retail.css">
+  <link rel="icon" href="/static/img/favicon.png" type="image/x-icon">
+
+  
+</head>
+<body class="bg-body-tertiary">
+<!-- Barra de navegación -->
+<nav class="navbar navbar-expand-lg border-bottom sticky-top bg-body shadow-sm">
+  <div class="container-fluid px-4">
+    <!-- Logo -->
+    <a class="navbar-brand" href="/">
+      <img src="/static/img/logo_0.png" alt="Logo Familia Bercomat" height="40">
+    </a>
+
+    <!-- Hamburguesa (móvil) -->
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse"
+            aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <!-- Contenido colapsable -->
+    <div class="collapse navbar-collapse" id="navbarCollapse">
+      <div class="navbar-nav ms-auto d-flex align-items-center gap-3">
+        
+        
+          <a href="/auth/login/" class="btn btn-outline-secondary rounded-pill px-3">Iniciar Sesión</a>
+        
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- Contenido principal -->
+<main class="container-fluid py-3">
+  
+<div id="loginPageContainer" class="login-container d-flex justify-content-center align-items-center min-vh-100">
+  <div id="loginCard" class="login-card p-4">
+    <div id="loginHeader" class="text-center mb-4">
+      <h3 id="loginTitle" class="fw-semibold login-title">Iniciar Sesión</h3>
+      <p id="loginSubtitle" class="login-subtitle">Ingresa tus credenciales para continuar</p>
+    </div>
+
+    <form id="loginForm" method="POST" onsubmit="showLoading();">
+      <input type="hidden" name="csrfmiddlewaretoken" value="iT3iil4Va2eqmwaYBtgdAcucan7Qg9y6RrM0qnbH97DbtD7RO0j7bF34FBs5Ysyh">
+      <div id="loginUsernameField" class="mb-4">
+        <label for="username" class="form-label fw-medium">Usuario</label>
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-person"></i></span>
+          <input type="text" class="form-control" id="username" name="username" placeholder="Tu usuario" required>
+        </div>
+      </div>
+      <div id="loginPasswordField" class="mb-4">
+        <label for="password" class="form-label fw-medium">Contraseña</label>
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-lock"></i></span>
+          <input type="password" class="form-control" id="password" name="password" placeholder="Tu contraseña" required>
+        </div>
+      </div>
+      <button id="loginSubmitButton" type="submit" class="btn btn-primary w-100 fw-semibold rounded-pill login-button">Ingresar</button>
+    </form>
+  </div>
+</div>
+
+
+
+<div id="loginLoadingOverlay" class="login-overlay d-none">
+  <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+  <p class="mt-3">Iniciando sesión...</p>
+</div>
+
+<script>
+  function showLoading() {
+    const el = document.getElementById('loginLoadingOverlay');
+    if (el) el.classList.remove('d-none');
+  }
+  document.addEventListener('DOMContentLoaded', function () {
+    const toastElements = document.querySelectorAll('#loginToastContainer .toast');
+    toastElements.forEach(t => new bootstrap.Toast(t).show());
+    const loginCard = document.querySelector('#loginCard');
+    if (loginCard) loginCard.classList.add('active');
+  });
+</script>
+
+</main>
+
+<!-- Modal búsqueda de clientes -->
+<div id="clientSearchModal" class="modal fade client-search-modal" tabindex="-1" aria-labelledby="clientSearchModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content shadow-lg border-0">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title" id="clientSearchModalLabel"><i class="bi bi-person me-2"></i> Buscar Cliente</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="input-group mb-4">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input type="text" id="clientSearchInput" class="form-control" placeholder="Buscar por DNI o ID Cliente" autocomplete="off">
+          <button class="btn btn-outline-success ms-2" title="Agregar Nuevo Cliente" hidden="true">
+            <i class="bi bi-person-plus"></i>
+          </button>
+        </div>
+        <div id="clientSearchResults" class="list-group" style="max-height: 300px; overflow-y: auto;"></div>
+        <div id="selectedClientInfo" class="mt-4" style="display: none;">
+          <div class="row g-3">
+            <div class="col-md-3">
+              <div class="client-info-section p-3 rounded shadow-sm">
+                <h6><i class="bi bi-person-fill me-2"></i>Información Personal</h6>
+                <p><strong>Nombre:</strong> <span id="clientName"></span></p>
+                <p><strong>Número Cliente:</strong> <span id="clientNumber"></span></p>
+                <p><strong>Bloqueado:</strong> <span id="clientBlocked"></span></p>
+                <p><strong>Tipo Contribuyente:</strong> <span id="clientType"></span></p>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="client-info-section p-3 rounded shadow-sm">
+                <h6><i class="bi bi-wallet2 me-2"></i>Datos Fiscales</h6>
+                <p><strong>Límite Crédito:</strong> <span id="clientCreditLimit"></span></p>
+                <p><strong>Grupo Impuestos:</strong> <span id="clientTaxGroup"></span></p>
+                <p><strong>DNI (NIF):</strong> <span id="clientNif"></span></p>
+                <p><strong>NIF (TIF):</strong> <span id="clientTif"></span></p>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="client-info-section p-3 rounded shadow-sm">
+                <h6><i class="bi bi-geo-alt-fill me-2"></i>Contacto</h6>
+                <p><strong>Dirección:</strong> <span id="clientAddress"></span></p>
+                <p><strong>Email:</strong> <span id="clientEmail"></span></p>
+                <p><strong>Teléfono:</strong> <span id="clientPhone"></span></p>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="client-info-section p-3 rounded shadow-sm">
+                <h6><i class="bi bi-calendar-date me-2"></i>Fechas</h6>
+                <p><strong>Fecha Creación:</strong> <span id="clientCreateDate"></span></p>
+                <p><strong>Fecha Modificación:</strong> <span id="clientModDate"></span></p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary rounded-pill" data-bs-dismiss="modal"><i class="bi bi-x-circle me-1"></i> Cerrar</button>
+        <button type="button" class="btn btn-primary rounded-pill" id="addClientToCartBtn" onclick="addClientToCart()" disabled><i class="bi bi-cart-plus me-1"></i> Agregar al Carrito</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Overlay del carrito -->
+<div id="cartOverlay" class="cart-overlay d-none">
+  <div class="cart-container shadow-lg">
+    <div class="cart-header bg-body text-body">
+      <h4><i class="bi bi-cart3 me-2"></i> Carrito</h4>
+      <button class="btn-close btn-close-white" onclick="toggleCart()"></button>
+    </div>
+    <div class="cart-actions bg-body p-3 d-flex gap-3 flex-wrap">
+      <button class="btn btn-outline-danger rounded-pill" onclick="clearCart()" title="Vaciar Carrito"><i class="bi bi-trash3"></i></button>
+      <button class="btn btn-outline-primary rounded-pill" onclick="generatePdfOnly()" title="Generar Solo PDF"><i class="bi bi-file-earmark-pdf"></i></button>
+      <button class="btn btn-outline-success rounded-pill" onclick="showQuotationTypeModal()" title="Crear en BercoPOS"><i class="bi bi-cloud-upload"></i></button>
+      <button class="btn btn-outline-primary rounded-pill" onclick="openRecoverQuotationModal()" title="Recuperar Presupuesto"><i class="bi bi-search"></i></button>
+      <button class="btn btn-outline-info rounded-pill" onclick="openClientSearchModal()" title="Buscar Cliente"><i class="bi bi-person"></i></button>
+      <button class="btn btn-outline-warning rounded-pill" onclick="openPaymentSimulator()" title="Simular Pagos"><i class="bi bi-calculator"></i></button>
+      <button class="btn btn-outline-success rounded-pill" onclick="invoiceCart()" title="Facturar"><i class="bi bi-receipt-cutoff"></i></button>
+      <button class="btn btn-outline-secondary rounded-pill disabled" title="Crear Pedido (Próximamente)"><i class="bi bi-receipt"></i></button>
+      <button class="btn btn-outline-secondary rounded-pill disabled" title="Definir Envío (Próximamente)"><i class="bi bi-truck"></i></button>
+    </div>
+    <div class="cart-content p-4 overflow-auto">
+      <div id="cartClientInfo" class="cart-client-info mb-4 p-3 bg-light rounded" style="display: none;">
+        <div class="client-info-inline">
+          <span><strong>Nombre:</strong> <span id="cartClientName"></span></span>
+          <span><strong>DNI:</strong> <span id="cartClientNif"></span></span>
+          <span><strong>Número Cliente:</strong> <span id="cartClientNumber"></span></span>
+          <span><strong>Dirección:</strong> <span id="cartClientAddress"></span></span>
+          <button class="btn btn-link text-info p-0 ms-2" onclick="showClientDetailsModal()">
+            <i class="bi bi-eye"></i> Detalles
+          </button>
+          <button class="btn btn-link text-danger p-0 ms-2" onclick="removeClientFromCart()" title="Eliminar Cliente">
+            <i class="bi bi-trash"></i>
+          </button>
+        </div>
+      </div>
+      <!-- Escritorio -->
+      <div class="cart-table-container desktop-view card shadow-sm border-0 p-3">
+        <table class="table table-hover cart-table-desktop">
+          <thead class="bg-light">
+            <tr>
+              <th>Código</th>
+              <th>Descripción</th>
+              <th>Unidad</th>
+              <th>Factor</th>
+              <th>Cantidad</th>
+              <th>Precio</th>
+              <th>Total</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="cartItemsDesktop"></tbody>
+        </table>
+      </div>
+      <!-- Móvil -->
+      <div class="cart-mobile-container mobile-view card shadow-sm border-0 p-3" style="display: none;">
+        <div id="cartItemsMobile"></div>
+      </div>
+    </div>
+    <!-- Footer total -->
+    <div class="cart-footer bg-body p-3 border-top">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="observations-wrapper flex-grow-1">
+          <label for="cartObservations" class="fw-bold me-2">Observaciones:</label>
+          <textarea id="cartObservations" class="form-control form-control-sm" maxlength="180" placeholder="Ingrese observaciones (máx. 180 caracteres)" rows="1"></textarea>
+        </div>
+        <div class="total-wrapper d-flex align-items-center">
+          <span class="fw-bold me-2">Total:</span>
+          <span id="cartTotalFixed" class="fw-bold">$0,00</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal detalles cliente -->
+<div id="clientDetailsModal" class="modal fade client-details-modal" tabindex="-1" aria-labelledby="clientDetailsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title" id="clientDetailsModalLabel"><i class="bi bi-person me-2"></i> Detalles del Cliente</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="row g-4">
+          <div class="col-md-6">
+            <div class="client-info-section p-3 rounded shadow-sm">
+              <h6><i class="bi bi-person-fill me-2"></i>Información Personal</h6>
+              <p><strong>Nombre:</strong> <span id="modalClientName"></span></p>
+              <p><strong>Número Cliente:</strong> <span id="modalClientNumber"></span></p>
+              <p><strong>Bloqueado:</strong> <span id="modalClientBlocked"></span></p>
+              <p><strong>Tipo Contribuyente:</strong> <span id="modalClientType"></span></p>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="client-info-section p-3 rounded shadow-sm">
+              <h6><i class="bi bi-wallet2 me-2"></i>Datos Fiscales</h6>
+              <p><strong>Límite Crédito:</strong> <span id="modalClientCreditLimit"></span></p>
+              <p><strong>Grupo Impuestos:</strong> <span id="modalClientTaxGroup"></span></p>
+              <p><strong>DNI (NIF):</strong> <span id="modalClientNif"></span></p>
+              <p><strong>NIF (TIF):</strong> <span id="modalClientTif"></span></p>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="client-info-section p-3 rounded shadow-sm">
+              <h6><i class="bi bi-geo-alt-fill me-2"></i>Contacto</h6>
+              <p><strong>Dirección:</strong> <span id="modalClientAddress"></span></p>
+              <p><strong>Email:</strong> <span id="modalClientEmail"></span></p>
+              <p><strong>Teléfono:</strong> <span id="modalClientPhone"></span></p>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="client-info-section p-3 rounded shadow-sm">
+              <h6><i class="bi bi-calendar-date me-2"></i>Fechas</h6>
+              <p><strong>Fecha Creación:</strong> <span id="modalClientCreateDate"></span></p>
+              <p><strong>Fecha Modificación:</strong> <span id="modalClientModDate"></span></p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- Toasts (Django messages) -->
+
+
+<!-- Overlay atributos -->
+<div id="productOverlay" class="product-overlay d-none position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-50 d-flex align-items-center justify-content-center">
+  <div id="overlayContent" class="product-attributes-container p-4 rounded shadow-lg" style="max-width: 900px; max-height: 95vh; overflow-y: auto;"></div>
+</div>
+
+<!-- Modal de Scanner -->
+<div id="scannerModal" class="modal fade scanner-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-qr-code-scan me-2"></i> Escanear código</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" onclick="try{stopScanner()}catch(e){}"></button>
+      </div>
+      <div class="modal-body">
+        <div class="scanner-video-container">
+          <video id="scannerVideo" autoplay muted playsinline></video>
+          <div class="scanner-frame"></div>
+        </div>
+        <div id="scannerStatus" class="scanner-status mt-2">Inicia el escaneo…</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" onclick="try{stopScanner()}catch(e){}">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Spinner overlay (global) -->
+<div id="spinner" class="spinner-overlay" style="display: none;">
+  <div class="spinner-border text-primary" role="status">
+    <span class="visually-hidden">Cargando...</span>
+  </div>
+</div>
+
+<!-- Modales adicionales -->
+<div id="quotationTypeModal" class="modal fade" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title"><i class="bi bi-cloud-upload me-2"></i> Generar Presupuesto</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Seleccione una opción para generar el presupuesto:</p>
+        <div class="d-flex justify-content-around">
+          <button class="btn btn-outline-primary" onclick="createInD365WithType('Caja')">Enviar a Caja</button>
+          <button class="btn btn-outline-secondary" onclick="createInD365WithType('Ventas')">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="printConfirmationModal" class="modal fade" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title"><i class="bi bi-check-circle me-2"></i> Presupuesto Generado</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p id="printConfirmationMessage"></p>
+        <p>¿Desea imprimirlo?</p>
+        <div class="d-flex justify-content-around">
+          <button class="btn btn-outline-secondary" onclick="closePrintModal(false)">No</button>
+          <button class="btn btn-outline-success" onclick="closePrintModal(true)">Sí</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="recoverQuotationModal" class="modal fade" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title"><i class="bi bi-arrow-clockwise me-2"></i> Recuperar Presupuesto</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3 d-flex gap-2">
+          <select id="quotationTypeSelect" class="form-select w-25" onchange="searchQuotations()">
+            <option value="local">Local (P-)</option>
+            <option value="d365">D365 (VENT1-)</option>
+          </select>
+          <input type="text" id="quotationSearchInput" class="form-control" placeholder="Buscar por ID de presupuesto" oninput="searchQuotations()">
+        </div>
+        <div id="quotationList" class="list-group" style="max-height: 300px; overflow-y: auto;"></div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade modal_warning_flete" id="fleteWarningModal" tabindex="-1" aria-labelledby="fleteWarningModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title" id="fleteWarningModalLabel">Advertencia</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">Se eliminará el flete del presupuesto. ¿Desea continuar?</div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="confirmFleteRemoval">Continuar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade modal_warning_confirmado" id="confirmedQuotationModal" tabindex="-1" aria-labelledby="confirmedQuotationModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-warning">
+        <h5 class="modal-title" id="confirmedQuotationModalLabel">Presupuesto Confirmado</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p>El presupuesto <span id="confirmedQuotationId"></span> está confirmado y asociado al pedido <span id="confirmedOrderNumber"></span>. No puede ser editado.</p>
+        <p>¿Desea crear un nuevo presupuesto con las mismas líneas?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="cancelNewQuotation" data-bs-dismiss="modal">No</button>
+        <button type="button" class="btn btn-primary" id="createNewQuotation">Sí</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="removeClientWarningModal" class="modal fade" tabindex="-1" aria-labelledby="removeClientWarningModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header" style="background-color: #dc3545; color: #fff;">
+        <h5 class="modal-title" id="removeClientWarningModalLabel">Advertencia</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p>Eliminar el cliente asociado al presupuesto D365 generará un <strong>nuevo presupuesto</strong>. ¿Estás seguro de continuar?</p>
+        <p>Presupuesto actual: <strong id="currentQuotationId">N/A</strong></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="cancelRemoveClient">Cancelar</button>
+        <button type="button" class="btn btn-danger" id="confirmRemoveClient">Eliminar Cliente</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Simulador de Pagos -->
+<div id="paymentSimulatorModal" class="modal fade payment-simulator-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-dark text-white">
+        <h5 class="modal-title">Simulador de Pagos</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <iframe id="paymentSimulatorFrame" style="width:100%;height:100%;border:0;"></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal WhatsApp -->
+<div id="whatsappModal" class="modal fade" tabindex="-1" aria-labelledby="whatsappModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title" id="whatsappModalLabel"><i class="fa fa-whatsapp me-2"></i> Enviar mensaje por WhatsApp</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label for="whatsappNumber" class="form-label"><i class="bi bi-telephone me-1"></i> Número de teléfono (sin +54)</label>
+          <input type="tel" class="form-control" id="whatsappNumber" placeholder="Ej: 3764123456" pattern="[0-9]+" maxlength="15">
+          <div id="whatsappNumberError" class="text-danger mt-1" style="display: none;"></div>
+        </div>
+        <div class="mb-3">
+          <label for="whatsappMessage" class="form-label"><i class="bi bi-chat-left-text me-1"></i> Mensaje (opcional)</label>
+          <textarea class="form-control" id="whatsappMessage" rows="3" placeholder="Escribí tu mensaje"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary rounded-pill" data-bs-dismiss="modal"><i class="bi bi-x-circle me-1"></i> Cancelar</button>
+        <button type="button" class="btn btn-primary rounded-pill" id="whatsappSubmit"><i class="bi bi-send me-1"></i> Enviar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Botón WhatsApp flotante -->
+<button class="whatsapp-btn" id="whatsappBtn" title="Enviar mensaje por WhatsApp">
+  <i class="fa fa-whatsapp"></i>
+</button>
+
+<!-- Librerías base (globales) -->
+<script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+
+
+<!-- Bloque para scripts específicos de cada página -->
+<!-- Config global: URL simulador externo (ERP V5) -->
+<script>
+  window.SIMULATOR_EXT_URL = 'http://localhost:8001/maestros/simulador/';
+  if (window.SIMULATOR_EXT_URL && !window.SIMULATOR_EXT_URL.endsWith('/')) {
+    window.SIMULATOR_EXT_URL = window.SIMULATOR_EXT_URL + '/';
+  }
+  if (window.SIMULATOR_EXT_URL === 'None' || window.SIMULATOR_EXT_URL === 'null' || window.SIMULATOR_EXT_URL === 'undefined') {
+    window.SIMULATOR_EXT_URL = '';
+  }
+  if ('http://localhost:8001/maestros/simulador/' === '') { window.SIMULATOR_EXT_URL = ''; }
+  // Alias para compatibilidad con otros scripts
+  window.SIMULATOR_V5_URL = window.SIMULATOR_EXT_URL;
+  window.SIMULATOR_V5_EXTERNAL_BASE_URL = window.SIMULATOR_EXT_URL;
+</script>
+<script src="/static/js/scripts.js"></script>
+
+</body>
+</html>
+
+

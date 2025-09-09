@@ -1,14 +1,14 @@
-/***************************************
+﻿/***************************************
  * Archivo: app.js
- * Descripción: Gestión de filtros, paginación,
- * visualización de imágenes y carga dinámica de productos
+ * DescripciÃ³n: GestiÃ³n de filtros, paginaciÃ³n,
+ * visualizaciÃ³n de imÃ¡genes y carga dinÃ¡mica de productos
  * filtrados por StoreID.
  ***************************************/
 
-// Función auxiliar para realizar solicitudes fetch con autenticación
+// FunciÃ³n auxiliar para realizar solicitudes fetch con autenticaciÃ³n
 async function fetchWithAuth(url, options = {}) {
     const defaultOptions = {
-        credentials: 'include', // Incluir cookies de sesión
+        credentials: 'include', // Incluir cookies de sesiÃ³n
         headers: {
             'X-Requested-With': 'XMLHttpRequest', // Identificar como AJAX
             ...options.headers
@@ -21,7 +21,7 @@ async function fetchWithAuth(url, options = {}) {
         if (!response.ok) {
             if (response.status === 401) {
                 console.warn("Usuario no autenticado, redirigiendo a login.");
-                showToast('warning', 'Por favor, inicia sesión para realizar esta acción.');
+                showToast('warning', 'Por favor, inicia sesiÃ³n para realizar esta acciÃ³n.');
                 setTimeout(() => {
                     window.location.href = '/auth/login';
                 }, 1500);
@@ -53,8 +53,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Cargar tema guardado o predeterminado
-  const savedTheme = localStorage.getItem('theme') || 'light';
+  const savedTheme = localStorage.getItem('theme') || 'dark';
+  // Mantener compatibilidad con estilos existentes y Bootstrap 5.3 theme
+  body.classList.remove('light-mode','dark-mode');
   body.classList.add(savedTheme === 'dark' ? 'dark-mode' : 'light-mode');
+  document.documentElement.setAttribute('data-bs-theme', savedTheme);
   updateThemeIcon(savedTheme);
 
   // Evento de clic para cambiar tema
@@ -62,8 +65,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentTheme = body.classList.contains('dark-mode') ? 'dark' : 'light';
     const newTheme = currentTheme === 'light' ? 'dark' : 'light';
 
+    // Actualizar clases heredadas
     body.classList.remove(`${currentTheme}-mode`);
     body.classList.add(`${newTheme}-mode`);
+    // Actualizar atributo de Bootstrap
+    document.documentElement.setAttribute('data-bs-theme', newTheme);
+    // Persistir y actualizar icono
     localStorage.setItem('theme', newTheme);
     updateThemeIcon(newTheme);
   });
@@ -75,12 +82,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 /* Variables globales */
 let products = [];         // Productos obtenidos desde el backend
-let filteredProducts = []; // Productos filtrados (usados para paginación)
+let filteredProducts = []; // Productos filtrados (usados para paginaciÃ³n)
 let currentPage = 1;
 const ITEMS_PER_PAGE = 20;
 let currentModalImageIndex = 0;
 let currentModalProduct = null;
-let hoverTimeout;          // Temporizador para evitar activaciones rápidas
+let hoverTimeout;          // Temporizador para evitar activaciones rÃ¡pidas
 let overlayVisible = false; // Indicador para el estado del overlay
 let isMouseOverImage = false; // Para controlar el overlay al pasar el mouse sobre la imagen
 let cart = {
@@ -89,7 +96,7 @@ let cart = {
     quotation_id: null,
     type: 'new',
     observations: ''
-}; // Array para almacenar los ítems del carrito
+}; // Array para almacenar los Ã­tems del carrito
 let currentProductToAdd = null; // Producto seleccionado para agregar al carrito
 let selectedClient = null;
 let lastProductsUpdate = 0;
@@ -131,13 +138,13 @@ async function checkProductsUpdate() {
             await loadProducts(storeId, 1, 20000, false, false);
         }
     } catch (error) {
-        console.error("Error al verificar actualización de productos:", error);
-        showToast('danger', 'Error al verificar actualización de productos.');
+        console.error("Error al verificar actualizaciÃ³n de productos:", error);
+        showToast('danger', 'Error al verificar actualizaciÃ³n de productos.');
     }
 }
 
 /***************************************
- * Cambio de Vista: Tabla ↔ Cards
+ * Cambio de Vista: Tabla â†” Cards
  ***************************************/
 function cambiarVista(vista) {
     const tableView = document.getElementById("tableView");
@@ -146,7 +153,7 @@ function cambiarVista(vista) {
     const btnCardView = document.getElementById("btnCardView");
 
     if (!tableView || !cardView || !btnTableView || !btnCardView) {
-        console.error("❌ Error: Elementos del DOM no encontrados.");
+        console.error("âŒ Error: Elementos del DOM no encontrados.");
         return;
     }
 
@@ -172,7 +179,7 @@ function cargarVistaCards(productos) {
   const cardView = document.getElementById("cardView");
 
   if (!cardView) {
-    console.error("❌ Error: No se encontró el contenedor de cards (`cardView`).");
+    console.error("âŒ Error: No se encontrÃ³ el contenedor de cards (`cardView`).");
     return;
   }
 
@@ -237,11 +244,11 @@ async function cargarImagenesCards(productos) {
             img.setAttribute("data-src", imageUrl);
         }
     }
-    initLazyLoading(); // Activar lazy loading después de actualizar data-src
+    initLazyLoading(); // Activar lazy loading despuÃ©s de actualizar data-src
 }
 
 /***************************************
- * Obtener Imagen del Producto (Usando Caché)
+ * Obtener Imagen del Producto (Usando CachÃ©)
  ***************************************/
 async function obtenerImagenProducto(productId) {
     const defaultImage = "/static/img/default.jpg";
@@ -308,7 +315,7 @@ async function showModal(productId) {
     const modalImg = document.getElementById('modalImage');
     const modalContent = document.querySelector('.image-modal-content');
 
-    // 🔹 Determinar qué imágenes existen para este producto
+    // ðŸ”¹ Determinar quÃ© imÃ¡genes existen para este producto
     let availableImages = [];
     for (let i = 1; i <= 3; i++) {
         const imageUrl = getImageUrl(productId, i);
@@ -326,7 +333,7 @@ async function showModal(productId) {
         }
     }
 
-    // 🔹 Si no hay imágenes disponibles, usar la imagen por defecto
+    // ðŸ”¹ Si no hay imÃ¡genes disponibles, usar la imagen por defecto
     if (availableImages.length === 0) {
         availableImages.push("/static/img/default.jpg");
     }
@@ -336,19 +343,19 @@ async function showModal(productId) {
     ajustarImagenModal();
     modal.style.display = 'flex';
 
-    // Guardamos las imágenes disponibles en un dataset para navegación
+    // Guardamos las imÃ¡genes disponibles en un dataset para navegaciÃ³n
     modal.dataset.availableImages = JSON.stringify(availableImages);
 
     // Elimina botones previos para evitar duplicados
     document.getElementById('modalPrevButton')?.remove();
     document.getElementById('modalNextButton')?.remove();
 
-    // 🔹 Crear botón "Anterior"
+    // ðŸ”¹ Crear botÃ³n "Anterior"
     if (availableImages.length > 1) {
         const prevButton = document.createElement('button');
         prevButton.id = 'modalPrevButton';
         prevButton.classList.add('modal-nav-button', 'btn', 'btn-dark');
-        prevButton.innerHTML = '❮';
+        prevButton.innerHTML = 'â®';
         prevButton.onclick = (event) => {
             event.stopPropagation();
             navigateModalImage(-1);
@@ -356,12 +363,12 @@ async function showModal(productId) {
         modalContent.appendChild(prevButton);
     }
 
-    // 🔹 Crear botón "Siguiente"
+    // ðŸ”¹ Crear botÃ³n "Siguiente"
     if (availableImages.length > 1) {
         const nextButton = document.createElement('button');
         nextButton.id = 'modalNextButton';
         nextButton.classList.add('modal-nav-button', 'btn', 'btn-dark');
-        nextButton.innerHTML = '❯';
+        nextButton.innerHTML = 'â¯';
         nextButton.onclick = (event) => {
             event.stopPropagation();
             navigateModalImage(1);
@@ -377,11 +384,11 @@ function closeModal() {
 function navigateModalImage(direction) {
     const modal = document.getElementById('imageModal');
     const modalImg = document.getElementById('modalImage');
-    let availableImages = JSON.parse(modal.dataset.availableImages); // Recuperamos imágenes disponibles
+    let availableImages = JSON.parse(modal.dataset.availableImages); // Recuperamos imÃ¡genes disponibles
 
     currentModalImageIndex += direction;
 
-    // 🔹 Evitar desbordamiento de índice
+    // ðŸ”¹ Evitar desbordamiento de Ã­ndice
     if (currentModalImageIndex < 0) {
         currentModalImageIndex = availableImages.length - 1;
     } else if (currentModalImageIndex >= availableImages.length) {
@@ -392,7 +399,7 @@ function navigateModalImage(direction) {
 }
 
 function updateModalNavButtons() {
-  // Aquí podrías actualizar el estado de los botones según el índice actual
+  // AquÃ­ podrÃ­as actualizar el estado de los botones segÃºn el Ã­ndice actual
   // Por ejemplo, deshabilitar "prev" si currentModalImageIndex === 0, etc.
 }
 
@@ -414,16 +421,16 @@ function ajustarAnchoModal() {
 
     if (!overlayContent) return;
 
-    let nuevoAncho = "90vw"; // 🔹 Valor por defecto
+    let nuevoAncho = "90vw"; // ðŸ”¹ Valor por defecto
 
-    // 🔹 Si la tabla está visible, tomamos su ancho
+    // ðŸ”¹ Si la tabla estÃ¡ visible, tomamos su ancho
     if (!tabla.classList.contains("d-none")) {
         nuevoAncho = `${tabla.offsetWidth}px`;
     }
 
-    // 🔹 Si las cards están activas, ajustamos a su contenedor
+    // ðŸ”¹ Si las cards estÃ¡n activas, ajustamos a su contenedor
     if (!cards.classList.contains("d-none")) {
-        nuevoAncho = `${cards.offsetWidth}px`; // Ajustamos un poco más pequeño si es necesario
+        nuevoAncho = `${cards.offsetWidth}px`; // Ajustamos un poco mÃ¡s pequeÃ±o si es necesario
     }
 
     // Aplicamos el ancho calculado
@@ -431,7 +438,7 @@ function ajustarAnchoModal() {
 }
 
 /***************************************
- * Funciones para imágenes de producto
+ * Funciones para imÃ¡genes de producto
  ***************************************/
 async function generateImageHtml(productId) {
     const imageUrl = getImageUrl(productId, 1);
@@ -449,11 +456,11 @@ async function generateImageHtml(productId) {
                     <button class="image-nav-button prev-image" 
                             onclick="event.stopPropagation(); navigateImage(${productId}, this.parentElement.parentElement, -1)" 
                             disabled>
-                        ←
+                        â†
                     </button>
                     <button class="image-nav-button next-image" 
                             onclick="event.stopPropagation(); navigateImage(${productId}, this.parentElement.parentElement, 1)">
-                        →
+                        â†’
                     </button>
                 </div>
             </div>
@@ -484,7 +491,7 @@ async function navigateImage(productId, container, direction) {
 }
 
 /***************************************
- * Funciones de Paginación y Visualización
+ * Funciones de PaginaciÃ³n y VisualizaciÃ³n
  ***************************************/
 async function displayProducts(products) {
     const productList = document.getElementById("productList");
@@ -575,16 +582,16 @@ async function cargarImagenesTabla(products) {
             img.alt = `Producto ${product["numero_producto"]}`;
         }
     }
-    initLazyLoading(); // Activar lazy loading después de actualizar data-src
+    initLazyLoading(); // Activar lazy loading despuÃ©s de actualizar data-src
 }
 
 
-// Función para mostrar un mensaje en la interfaz de usuario
+// FunciÃ³n para mostrar un mensaje en la interfaz de usuario
 function mostrarMensaje(mensaje) {
     const mensajeElement = document.getElementById("mensaje");
     if (mensajeElement) {
         mensajeElement.textContent = mensaje;
-        mensajeElement.classList.remove("d-none"); // Asegúrate de que el mensaje sea visible
+        mensajeElement.classList.remove("d-none"); // AsegÃºrate de que el mensaje sea visible
     }
 }
 
@@ -598,7 +605,7 @@ function changePage(page) {
 async function actualizarTabla(productos) {
     const productList = document.getElementById("productList");
     if (!productList) return;
-    productList.innerHTML = ""; // 🔹 Limpiar tabla antes de insertar
+    productList.innerHTML = ""; // ðŸ”¹ Limpiar tabla antes de insertar
 
     if (!productos.length) {
         productList.innerHTML = `<tr>
@@ -609,7 +616,7 @@ async function actualizarTabla(productos) {
 
     for (const product of productos) {
         const row = document.createElement("tr");
-        row.dataset.productId = product.numero_producto; // 🔹 Guardar ID del producto en la fila
+        row.dataset.productId = product.numero_producto; // ðŸ”¹ Guardar ID del producto en la fila
 
         // Obtener imagen
         const imageUrl = await obtenerImagenProducto(product.numero_producto);
@@ -639,7 +646,7 @@ async function actualizarTabla(productos) {
         productList.appendChild(row);
     }
 
-    // 🔹 Llamar a setupRowListeners() después de agregar las filas
+    // ðŸ”¹ Llamar a setupRowListeners() despuÃ©s de agregar las filas
     setupRowListeners();
     setTimeout(initLazyLoading, 100);
 }
@@ -653,7 +660,7 @@ function updatePagination(totalItems) {
   const ul = document.createElement("ul");
   ul.classList.add("pagination", "justify-content-center");
 
-  // Botón "Anterior"
+  // BotÃ³n "Anterior"
   const prevItem = document.createElement("li");
   prevItem.classList.add("page-item");
   if (currentPage === 1) prevItem.classList.add("disabled");
@@ -685,7 +692,7 @@ function updatePagination(totalItems) {
     ul.appendChild(createPageItem(totalPages));
   }
 
-  // Botón "Siguiente"
+  // BotÃ³n "Siguiente"
   const nextItem = document.createElement("li");
   nextItem.classList.add("page-item");
   if (currentPage === totalPages) nextItem.classList.add("disabled");
@@ -742,7 +749,7 @@ function filterProducts() {
         .filter(term => term.length > 0) : [];
 
     const category = document.getElementById("categoryFilter")?.value || "";
-    const coverage = document.getElementById("coverageGroupFilter")?.value || "";
+    const coverage = document.getElementById("coverageGroupFilter")?.value || ""; // normalizado
     const store = document.getElementById("storeFilter")?.value || getLastStore();
     const excludeSpecial = document.getElementById("excludeSpecialCategories")?.checked || false;
     const minPrice = parseFloat(document.getElementById("minPrice")?.value) || 0;
@@ -756,7 +763,7 @@ function filterProducts() {
     const excludeWords = ["outlet", "outle", "2da", "saldo", "lote", "@", "//", "pedido", "outl"];
 
     if (!products || !Array.isArray(products)) {
-        throw new Error("La lista de productos no está definida o no es válida.");
+        throw new Error("La lista de productos no estÃ¡ definida o no es vÃ¡lida.");
     }
 
     let filtered = products.filter(product => {
@@ -769,7 +776,7 @@ function filterProducts() {
         );
 
         const matchesCategory = !category || product["categoria_producto"] === category;
-        const matchesCoverage = !coverage || product["grupo_cobertura"] === coverage;
+        const matchesCoverage = !coverage || (product["grupo_cobertura_normalizado"] === coverage);
         const matchesStore = !store || product["store_number"] === store;
 
         const productPrice = parseFloat(product["precio_final_con_descuento"]?.replace(/\./g, "").replace(",", ".")) || 0;
@@ -792,7 +799,7 @@ function filterProducts() {
         return matchesSearch && matchesCategory && matchesCoverage && matchesStore && matchesPrice && excludeSpecialFilter && matchesSigno;
     });
 
-    // Ordenar alfabéticamente por nombre_producto
+    // Ordenar alfabÃ©ticamente por nombre_producto
     filtered.sort((a, b) => {
         const nameA = a.nombre_producto?.toLowerCase() || "";
         const nameB = b.nombre_producto?.toLowerCase() || "";
@@ -885,32 +892,35 @@ function sortTable(columnIndex) {
 /***************************************
  * Funciones para inicializar filtros
  ***************************************/
-function initializeFilters(previousCategory = "", previousCoverage = "") {
-  // Recolectar categorías y grupos de cobertura a partir de los productos actuales
+function initializeFilters(previousCategory = "", previousCoverageNorm = "") {
+  // Recolectar categorÃ­as y grupos de cobertura a partir de los productos actuales
   const categories = new Set();
-  const coverageGroups = new Set();
+  const coverageGroupMap = new Map(); // normalizado -> etiqueta original
 
   products.forEach(product => {
-    categories.add(product["categoria_producto"]);
-    coverageGroups.add(product["grupo_cobertura"]);
+    if (product["categoria_producto"]) categories.add(product["categoria_producto"]);
+    const label = product["grupo_cobertura"] || "";
+    const value = product["grupo_cobertura_normalizado"] || normalizeText(label);
+    if (value && !coverageGroupMap.has(value)) coverageGroupMap.set(value, label);
   });
 
   // Repoblar los filtros, conservando el valor previamente seleccionado si existe
-  populateFilter("categoryFilter", categories, false, previousCategory);
-  populateFilter("coverageGroupFilter", coverageGroups, false, previousCoverage);
+  populateFilter("categoryFilter", Array.from(categories), false, previousCategory);
+  const coverageOptions = Array.from(coverageGroupMap.entries()).map(([value, label]) => ({ value, label }));
+  populateFilter("coverageGroupFilter", coverageOptions, false, previousCoverageNorm);
 
-  // Para el filtro de tiendas, se carga sólo en la carga inicial (usando la variable global backendStores)
+  // Para el filtro de tiendas, se carga sÃ³lo en la carga inicial (usando la variable global backendStores)
   const storeFilterElement = document.getElementById("storeFilter");
   if (storeFilterElement && storeFilterElement.options.length === 0) {
     const storeSet = new Set(backendStores);
-    populateFilter("storeFilter", storeSet, true);
+    populateFilter("storeFilter", Array.from(storeSet), true);
   }
 }
 
 function populateFilter(filterId, values, isStoreFilter = false, selectedValue = "") {
   const filterElement = document.getElementById(filterId);
   if (!filterElement) {
-    console.error(`No se encontró el filtro con ID: ${filterId}`);
+    console.error(`No se encontrÃ³ el filtro con ID: ${filterId}`);
     return;
   }
 
@@ -923,17 +933,25 @@ function populateFilter(filterId, values, isStoreFilter = false, selectedValue =
     filterElement.appendChild(defaultOption);
   }
 
-  const sortedValues = Array.from(values).sort((a, b) => a.localeCompare(b));
-  sortedValues.forEach(value => {
-    if (value) {
+  const isObjectList = Array.isArray(values) && values.length && typeof values[0] === 'object';
+  const sortedValues = Array.from(values).sort((a, b) => {
+    const la = isObjectList ? (a.label || '') : (a || '');
+    const lb = isObjectList ? (b.label || '') : (b || '');
+    return la.localeCompare(lb);
+  });
+
+  sortedValues.forEach(v => {
+    const value = isObjectList ? v.value : v;
+    const label = isObjectList ? (v.label ?? v.value) : v;
+    if (label) {
       const option = document.createElement("option");
       option.value = value;
-      option.textContent = value;
+      option.textContent = label;
       filterElement.appendChild(option);
     }
   });
 
-  // Si se proporcionó un valor seleccionado, se intenta restablecer
+  // Si se proporcionÃ³ un valor seleccionado, se intenta restablecer
   if (selectedValue) {
     for (let i = 0; i < filterElement.options.length; i++) {
       if (filterElement.options[i].value === selectedValue) {
@@ -942,12 +960,14 @@ function populateFilter(filterId, values, isStoreFilter = false, selectedValue =
       }
     }
   } else if (isStoreFilter && filterElement.options.length > 0 && !filterElement.value) {
-    filterElement.value = sortedValues[0];
+    // Seleccionar el primero si no hay valor actual para tienda
+    const first = isObjectList ? (sortedValues[0]?.value || '') : (sortedValues[0] || '');
+    filterElement.value = first;
   }
 }
 
 /***************************************
- * Función para cargar productos desde el backend
+ * FunciÃ³n para cargar productos desde el backend
  ***************************************/
 async function loadProducts(storeId, page = 1, itemsPerPage = 20000, showSpinnerParam = true, resetPage = true) {
     let spinnerShown = false;
@@ -963,7 +983,8 @@ async function loadProducts(storeId, page = 1, itemsPerPage = 20000, showSpinner
         const rawProducts = await response.json();
         products = rawProducts.map(product => ({
             ...product,
-            nombre_producto_normalizado: normalizeText(product["nombre_producto"] || "")
+            nombre_producto_normalizado: normalizeText(product["nombre_producto"] || ""),
+            grupo_cobertura_normalizado: normalizeText(product["grupo_cobertura"] || "")
         }));
         // Actualizar filtro de tienda...
         const storeFilterElement = document.getElementById("storeFilter");
@@ -975,8 +996,9 @@ async function loadProducts(storeId, page = 1, itemsPerPage = 20000, showSpinner
         const covEl = document.getElementById("coverageGroupFilter");
         const previousCategory = catEl ? catEl.value : "";
         const previousCoverage = covEl ? covEl.value : "";
+        const previousCoverageNorm = previousCoverage ? normalizeText(previousCoverage) : "";
         // Reiniciar filtros...
-        initializeFilters(previousCategory, previousCoverage);
+        initializeFilters(previousCategory, previousCoverageNorm);
         if (resetPage) {
             currentPage = 1;
         }
@@ -1002,7 +1024,7 @@ async function loadProducts(storeId, page = 1, itemsPerPage = 20000, showSpinner
 /***************************************
  * Event Listeners
  ***************************************/
-document.addEventListener("DOMContentLoaded", function () {
+  document.addEventListener("DOMContentLoaded", function () {
     showSpinner();
     const initialStore = getLastStore();
     loadProducts(initialStore);
@@ -1043,7 +1065,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (excludeSpecialCategories) excludeSpecialCategories.addEventListener('change', filterAndPaginate);
 });
 
-// Inicialización de toasts de Bootstrap (si aplica)
+// InicializaciÃ³n de toasts de Bootstrap (si aplica)
 document.addEventListener('DOMContentLoaded', function () {
   const toastElements = document.querySelectorAll('.toast');
   toastElements.forEach(function (toastElement) {
@@ -1052,7 +1074,7 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 });
 
-// Función opcional para limpiar caché de imágenes
+// FunciÃ³n opcional para limpiar cachÃ© de imÃ¡genes
 function clearImageCache() {
   const keys = Object.keys(localStorage);
   keys.forEach(key => {
@@ -1075,14 +1097,14 @@ async function updateLastStore(storeId) {
         }
     } catch (error) {
         console.error("Error al actualizar last_store:", error);
-        showToast('danger', `Error al actualizar la última tienda: ${error.message}`);
+        showToast('danger', `Error al actualizar la Ãºltima tienda: ${error.message}`);
     }
 }
 
 let spinnerActive = false; // bandera global
 
 function showSpinner() {
-  if (spinnerActive) return;  // Si ya está activo, no hace nada
+  if (spinnerActive) return;  // Si ya estÃ¡ activo, no hace nada
   spinnerActive = true;
   const spinner = document.getElementById('spinner');
   if (spinner) {
@@ -1091,7 +1113,7 @@ function showSpinner() {
 }
 
 function hideSpinner() {
-  if (!spinnerActive) return; // Evitamos ocultarlo si no está activo
+  if (!spinnerActive) return; // Evitamos ocultarlo si no estÃ¡ activo
   spinnerActive = false;
   const spinner = document.getElementById('spinner');
   if (spinner) {
@@ -1105,8 +1127,8 @@ async function buscarStock(event, productoNombre, productoId, unidadMedida, stor
         showSpinner();
 
         if (!productoId) {
-            console.error("⚠️ Error: productoId no válido en buscarStock()");
-            alert("Error: Producto no válido.");
+            console.error("âš ï¸ Error: productoId no vÃ¡lido en buscarStock()");
+            alert("Error: Producto no vÃ¡lido.");
             return;
         }
 
@@ -1126,8 +1148,8 @@ async function buscarStock(event, productoNombre, productoId, unidadMedida, stor
         const stockData = await stockResp.json();
         abrirOverlayStock(productoNombre, productoId, unidadMedida, stockData);
     } catch (error) {
-        console.error("❌ Error al buscar stock:", error);
-        abrirOverlayStock(productoNombre, productoId, unidadMedida, null, "Ocurrió un error al buscar el stock.");
+        console.error("âŒ Error al buscar stock:", error);
+        abrirOverlayStock(productoNombre, productoId, unidadMedida, null, "OcurriÃ³ un error al buscar el stock.");
     } finally {
         hideSpinner();
     }
@@ -1136,7 +1158,7 @@ async function buscarStock(event, productoNombre, productoId, unidadMedida, stor
 function convertirMonedaANumero(valor) {
   if (valor === null || valor === undefined) return 0;
 
-  // Si ya es número, devolverlo redondeado
+  // Si ya es nÃºmero, devolverlo redondeado
   if (typeof valor === 'number' && Number.isFinite(valor)) {
     return parseFloat(valor.toFixed(2));
   }
@@ -1147,7 +1169,7 @@ function convertirMonedaANumero(valor) {
     // Normalizar "menos" unicode a '-'
     s = s.replace(/\u2212/g, '-');
 
-    // Conservar dígitos, separadores y el '-' inicial
+    // Conservar dÃ­gitos, separadores y el '-' inicial
     s = s.replace(/[^0-9,.\-]/g, ''); // ahora no borra el signo
     s = s.replace(/(?!^)-/g, '');     // si hubiera guiones en el medio, dejamos solo el inicial
 
@@ -1169,7 +1191,7 @@ function convertirMonedaANumero(valor) {
 
 function formatearMoneda(valor) {
     if (typeof valor !== 'number' || isNaN(valor)) {
-        console.warn(`Valor no válido para formatearMoneda: ${valor}`);
+        console.warn(`Valor no vÃ¡lido para formatearMoneda: ${valor}`);
         return '0,00';
     }
     return valor.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1178,7 +1200,7 @@ function formatearMoneda(valor) {
 function abrirOverlayStock(nombre, codigo, unidad, stockData) {
   const overlay = document.getElementById("stockOverlay");
   if (!overlay) {
-    console.error("Error: No se encontró el elemento #stockOverlay");
+    console.error("Error: No se encontrÃ³ el elemento #stockOverlay");
     return;
   }
   const nombreElem = document.getElementById("stockProductoNombre");
@@ -1228,11 +1250,11 @@ function abrirOverlayStock(nombre, codigo, unidad, stockData) {
     totalComprometido.textContent = formatearMoneda(sumaComprometido);
   }
 
-  // Mostrar overlay con animación
+  // Mostrar overlay con animaciÃ³n
   overlay.classList.remove("d-none");
   setTimeout(() => {
     overlay.classList.add("active");
-  }, 10); // Pequeño retraso para activar la transición
+  }, 10); // PequeÃ±o retraso para activar la transiciÃ³n
 }
 
 function cerrarOverlaystock() {
@@ -1241,7 +1263,7 @@ function cerrarOverlaystock() {
     overlay.classList.remove("active");
     setTimeout(() => {
       overlay.classList.add("d-none");
-    }, 300); // Esperar a que termine la animación
+    }, 300); // Esperar a que termine la animaciÃ³n
   }
 }
 
@@ -1270,7 +1292,7 @@ async function mostrarAtributos(productId) {
         const validImages = imageUrls.length > 0 ? imageUrls : [defaultImage];
 
         overlayContent.innerHTML = `
-            <button class="overlay-close-btn" onclick="cerrarOverlay()">×</button>
+            <button class="overlay-close-btn" onclick="cerrarOverlay()">Ã—</button>
             <div class="header text-center mb-4">
                 <img src="https://productimages.familiabercomat.com/small/logo_0.png" alt="Logo de Familia Bercomat" class="logo mb-3">
                 <h1 class="product-title">${productName}</h1>
@@ -1341,8 +1363,8 @@ async function mostrarAtributos(productId) {
 }
 
 function sanitizeText(text) {
-    // Permitir letras, números, espacios y algunos caracteres básicos, eliminando otros especiales
-    return text.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s.,-]/g, "").substring(0, 180);
+    // Permitir letras, nÃºmeros, espacios y algunos caracteres bÃ¡sicos, eliminando otros especiales
+    return text.replace(/[^a-zA-Z0-9Ã¡Ã©Ã­Ã³ÃºÃÃ‰ÃÃ“ÃšÃ±Ã‘\s.,-]/g, "").substring(0, 180);
 }
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -1360,8 +1382,62 @@ document.addEventListener("DOMContentLoaded", function () {
                 ]).catch(error => {
                     console.error('Error al guardar observaciones:', error);
                     showToast('danger', 'Error al guardar observaciones');
-                });
-            });
+  });
+});
+
+// Atajos de teclado F1â€“F10
+document.addEventListener('DOMContentLoaded', () => {
+  window.addEventListener('keydown', (e) => {
+    const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+    const isTyping = tag === 'input' || tag === 'textarea' || e.target?.isContentEditable;
+    // Evitar interferir mientras se escribe en campos de texto
+    if (isTyping) return;
+    switch (e.key) {
+      case 'F1': // Foco en bÃºsqueda
+        e.preventDefault();
+        document.getElementById('search')?.focus();
+        break;
+      case 'F2': // Abrir/Toggle carrito
+        e.preventDefault();
+        try { toggleCart(); } catch {}
+        break;
+      case 'F3': // Limpiar filtros
+        e.preventDefault();
+        try { clearFilters(); } catch {}
+        break;
+      case 'F4': // Abrir escÃ¡ner
+        e.preventDefault();
+        try { openScannerModal(); } catch {}
+        break;
+      case 'F5': // Vista tabla
+        e.preventDefault();
+        try { cambiarVista('tabla'); } catch {}
+        break;
+      case 'F6': // Vista cards
+        e.preventDefault();
+        try { cambiarVista('cards'); } catch {}
+        break;
+      case 'F7': // Buscar cliente
+        e.preventDefault();
+        try { openClientSearchModal(); } catch {}
+        break;
+      case 'F8': // Recuperar presupuesto
+        e.preventDefault();
+        try { openRecoverQuotationModal(); } catch {}
+        break;
+      case 'F9': // Abrir simulador de pagos (si existe modal)
+        e.preventDefault();
+        try { bootstrap.Modal.getOrCreateInstance('#modalPagos').show(); } catch {}
+        break;
+      case 'F10': // Generar presupuesto (si existe modal)
+        e.preventDefault();
+        try { bootstrap.Modal.getOrCreateInstance('#quotationTypeModal').show(); } catch {}
+        break;
+      default:
+        break;
+    }
+  });
+});
         });
     }
 
@@ -1409,7 +1485,7 @@ async function updateCartPrices(storeId) {
         if (cart.items.length > 0) {
         }
     }).catch(error => {
-        console.error('Error al guardar carrito después de actualizar precios:', error);
+        console.error('Error al guardar carrito despuÃ©s de actualizar precios:', error);
         showToast('danger', 'Error al guardar los cambios del carrito.');
     });
 }
@@ -1423,7 +1499,7 @@ function cerrarOverlay() {
         setTimeout(() => {
             overlay.classList.add("d-none");
             overlayContent.innerHTML = ''; // Limpiar contenido
-        }, 300); // Esperar a que termine la animación
+        }, 300); // Esperar a que termine la animaciÃ³n
     }
 }
 
@@ -1505,7 +1581,7 @@ function actualizarFiltrosPrecio(origen) {
     const maxPriceInput = document.getElementById("maxPrice");
 
     if (origen === "select") {
-        // 🔹 Si el usuario selecciona un rango predefinido
+        // ðŸ”¹ Si el usuario selecciona un rango predefinido
         const priceRange = priceRangeSelect.value;
         if (!priceRange) {
             minPriceInput.value = "";
@@ -1516,15 +1592,15 @@ function actualizarFiltrosPrecio(origen) {
             maxPriceInput.value = max === 999999999 ? "" : max;
         }
     } else if (origen === "manual") {
-        // 🔹 Si el usuario edita manualmente, reseteamos el select
+        // ðŸ”¹ Si el usuario edita manualmente, reseteamos el select
         priceRangeSelect.value = "";
     }
 
-    // 🔹 Aplicar el filtro con los valores actuales
+    // ðŸ”¹ Aplicar el filtro con los valores actuales
     filterAndPaginate(false);
 }
 
-// ✅ Agregar eventos separados para cada cambio
+// âœ… Agregar eventos separados para cada cambio
 document.getElementById("priceRangeFilter").addEventListener("change", () => actualizarFiltrosPrecio("select"));
 document.getElementById("minPrice").addEventListener("input", () => actualizarFiltrosPrecio("manual"));
 document.getElementById("maxPrice").addEventListener("input", () => actualizarFiltrosPrecio("manual"));
@@ -1584,7 +1660,7 @@ function initLazyLoading() {
     }
 }
 
-// Ejecutar al cargar la página
+// Ejecutar al cargar la pÃ¡gina
 document.addEventListener("DOMContentLoaded", initLazyLoading);
 
 function ajustarImagenModal() {
@@ -1592,7 +1668,7 @@ function ajustarImagenModal() {
     if (!modalImg) return;
 
     if (modalImg.src.includes("default.jpg")) {
-        modalImg.style.width = "400px";  // 🔹 Ajusta a un tamaño fijo si es default
+        modalImg.style.width = "400px";  // ðŸ”¹ Ajusta a un tamaÃ±o fijo si es default
         modalImg.style.height = "auto";
     } else {
         modalImg.style.width = "";
@@ -1648,9 +1724,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
 function validarCantidad(multiplo, cantidad) {
     try {
-        // Asegurar que multiplo sea un número válido
+        // Asegurar que multiplo sea un nÃºmero vÃ¡lido
         const multiploValido = (multiplo === null || multiplo === undefined || isNaN(multiplo) || multiplo <= 0) ? 1 : parseFloat(multiplo.toFixed(2));
-        // Asegurar que cantidad sea un número válido
+        // Asegurar que cantidad sea un nÃºmero vÃ¡lido
         const cantidadNum = isNaN(cantidad) ? 1 : parseFloat(cantidad);
         const tolerance = 0.0001;
         const cantidadRedondeada = Number(cantidadNum.toFixed(2));
@@ -1665,6 +1741,17 @@ function validarCantidad(multiplo, cantidad) {
         console.error('DEBUG: Error en validarCantidad:', error);
         return 1; // Valor por defecto en caso de error
     }
+}
+
+function isUnidadM2(unidad) {
+    if (!unidad) return false;
+    const u = String(unidad).trim().toLowerCase();
+    return u === 'm2' || u === 'mÂ²' || u === 'm^2';
+}
+
+function formatCantidadPorUnidad(cantidad, unidad) {
+    const n = Number(cantidad || 0);
+    return isUnidadM2(unidad) ? Number(n.toFixed(2)) : Number(n.toFixed(0));
 }
 
 function calcularCajas(cantidad, multiplo, unidadMedida) {
@@ -1704,12 +1791,13 @@ function showQuantityModal(event, productId, productName, price) {
     document.getElementById("quantityModalProductName").textContent = productName;
     document.getElementById("quantityModalProductPrice").textContent = `$${formatearMoneda(parsedPrice)}`;
     const input = document.getElementById("quantityInput");
-    input.value = multiplo;
+    input.value = formatCantidadPorUnidad(multiplo, unidadMedida);
     input.min = multiplo;
+    input.step = String(Number(multiplo || 1).toFixed(2));
     document.getElementById("quantityModalUnitMeasure").textContent = unidadMedida;
 
     const cantidadInicial = validarCantidad(multiplo, multiplo);
-    input.value = cantidadInicial;
+    input.value = formatCantidadPorUnidad(cantidadInicial, unidadMedida);
     const cajasElement = document.getElementById("quantityModalCajas");
     cajasElement.textContent = calcularCajas(cantidadInicial, multiplo, unidadMedida);
     updateTotal();
@@ -1735,18 +1823,18 @@ function showQuantityModal(event, productId, productName, price) {
 
 function adjustQuantity(delta) {
     const input = document.getElementById("quantityInput");
-    let quantity = parseFloat(input.value) || currentProductToAdd.multiplo; // Usar multiplo como valor inicial si está vacío
+    let quantity = parseFloat(input.value) || currentProductToAdd.multiplo; // Usar multiplo como valor inicial si estÃ¡ vacÃ­o
     const step = delta * currentProductToAdd.multiplo; // Calcular el paso basado en el multiplo
 
     // Ajustar la cantidad sumando el paso
     quantity += step;
 
-    // Asegurar que no baje del mínimo (multiplo)
+    // Asegurar que no baje del mÃ­nimo (multiplo)
     if (quantity < currentProductToAdd.multiplo) {
         quantity = currentProductToAdd.multiplo;
     }
 
-    // Validar y ajustar al múltiplo correcto
+    // Validar y ajustar al mÃºltiplo correcto
     const cantidadValidada = validarCantidad(currentProductToAdd.multiplo, quantity);
     input.value = cantidadValidada;
 
@@ -1758,7 +1846,7 @@ function adjustQuantity(delta) {
 
 function updateTotal() {
     const quantity = parseFloat(document.getElementById("quantityInput").value) || currentProductToAdd.multiplo;
-    const total = currentProductToAdd.price * Number(quantity.toFixed(2)); // Redondear cantidad para cálculo
+    const total = currentProductToAdd.price * Number(quantity.toFixed(2)); // Redondear cantidad para cÃ¡lculo
     document.getElementById("quantityModalTotal").textContent = `$${formatearMoneda(total)}`;
 
     // Actualizar equivalencia al cambiar la cantidad
@@ -1768,16 +1856,19 @@ function updateTotal() {
 
 function addToCartConfirmed() {
     const quantityInput = document.getElementById("quantityInput");
-    const quantity = parseFloat(quantityInput.value);
+    let quantity = parseFloat(quantityInput.value);
     const modal = bootstrap.Modal.getInstance(document.getElementById("quantityModal"));
     const addButton = document.querySelector('#quantityModal .modal-footer .btn-primary');
 
     if (!currentProductToAdd || isNaN(quantity) || quantity <= 0) {
-        showToast('danger', 'Cantidad inválida');
+        showToast('danger', 'Cantidad invÃ¡lida');
         return;
     }
 
     addButton.disabled = true;
+
+    // Validar y normalizar cantidad a mÃºltiplo y 2 decimales si aplica
+    quantity = validarCantidad(currentProductToAdd.multiplo, quantity);
 
     const existingItemIndex = cart.items.findIndex(item => item.productId === currentProductToAdd.productId);
     if (existingItemIndex !== -1) {
@@ -1812,227 +1903,140 @@ function addToCartConfirmed() {
 }
 
 function updateCartDisplay() {
-    const cartItemsDesktop = document.getElementById("cartItemsDesktop");
-    const cartItemsMobile = document.getElementById("cartItemsMobile");
-    const cartItemCount = document.getElementById("cartItemCount");
-    const cartTotalFloat = document.getElementById("cartTotalFloat");
-    const cartTotalFixed = document.getElementById("cartTotalFixed");
-    const cartClientInfo = document.getElementById("cartClientInfo");
-    let cartClientFloat = document.getElementById("cartClientFloat");
-    const observationsInput = document.getElementById("cartObservations");
+  const cartItemsDesktop = document.getElementById("cartItemsDesktop");
+  const cartItemsMobile  = document.getElementById("cartItemsMobile");
+  const cartItemCount    = document.getElementById("cartItemCount");
+  const cartTotalFloat   = document.getElementById("cartTotalFloat");
+  const cartTotalFixed   = document.getElementById("cartTotalFixed");
+  const cartClientInfo   = document.getElementById("cartClientInfo");
+  let   cartClientFloat  = document.getElementById("cartClientFloat");
+  const observationsInput = document.getElementById("cartObservations");
 
-    if (!cartTotalFixed) {
-        console.error("Elemento 'cartTotalFixed' no encontrado en el DOM");
-        return;
+  // Si no existe el footer del carrito en esta vista, salir de forma suave.
+  if (!cartTotalFixed) {
+    console.warn("updateCartDisplay: 'cartTotalFixed' no estÃ¡ disponible en esta pÃ¡gina. Render parcial.");
+    // Aun asÃ­, actualizamos contadores flotantes si existen y salimos.
+    if (cartItemCount)   cartItemCount.textContent = cart.items.length.toString();
+    if (cartTotalFloat) {
+      const total = cart.items.reduce((acc, it) => acc + it.price * it.quantity, 0);
+      cartTotalFloat.textContent = total.toLocaleString('es-AR', { minimumFractionDigits: 2 });
     }
-    if (!cartItemCount) {
-        console.warn("Elemento 'cartItemCount' no encontrado; se omitirá su actualización.");
+    // Mostrar/ocultar info de cliente si el bloque existe
+    if (cartClientInfo) cartClientInfo.style.display = cart.client ? "block" : "none";
+    return;
+  }
+
+  // Observaciones (si existe el textarea)
+  if (observationsInput) {
+    cartObservations = sanitizeText(observationsInput.value || "");
+  }
+
+  // Asegurar span del cliente en el botÃ³n flotante
+  if (!cartClientFloat) {
+    const floatButton = document.querySelector(".cart-float-btn");
+    if (floatButton) {
+      cartClientFloat = document.createElement("span");
+      cartClientFloat.id = "cartClientFloat";
+      cartClientFloat.textContent = "Sin cliente";
+      floatButton.appendChild(cartClientFloat);
     }
-    if (!cartTotalFloat) {
-        console.warn("Elemento 'cartTotalFloat' no encontrado; se omitirá su actualización.");
+  }
+  if (cartClientFloat) {
+    cartClientFloat.textContent = (cart.client && cart.client.nombre_cliente) ? cart.client.nombre_cliente : "Sin cliente";
+  }
+
+  // Muestra/oculta resumen de cliente dentro del carrito
+  if (cartClientInfo) {
+    if (cart.client) {
+      const safe = (v) => v ?? "N/A";
+      const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = safe(val); };
+      setText("cartClientName",    cart.client.nombre_cliente);
+      setText("cartClientNumber",  cart.client.numero_cliente);
+      setText("cartClientNif",     cart.client.nif);
+      setText("cartClientAddress", cart.client.direccion_completa);
+      cartClientInfo.style.display = "block";
+    } else {
+      cartClientInfo.style.display = "none";
     }
+  }
 
+  // Render de lÃ­neas (si existen contenedores)
+  if (cartItemsDesktop && cartItemsMobile) {
+    cartItemsDesktop.innerHTML = "";
+    cartItemsMobile.innerHTML  = "";
 
-    if (observationsInput) {
-        cartObservations = sanitizeText(observationsInput.value);
-    }
+    const isMobile = window.innerWidth <= 768;
+    cartItemsDesktop.parentElement.style.display = isMobile ? "none" : "table";
+    cartItemsMobile.parentElement.style.display  = isMobile ? "block" : "none";
 
-    if (!cartClientFloat) {
-        console.warn("Elemento 'cartClientFloat' no encontrado; creándolo dinámicamente");
-        const floatButton = document.querySelector(".cart-float-btn");
-        if (floatButton) {
-            cartClientFloat = document.createElement("span");
-            cartClientFloat.id = "cartClientFloat";
-            cartClientFloat.textContent = "Sin cliente";
-            floatButton.appendChild(cartClientFloat);
-        }
-    }
+    // Render simple de ejemplo (ajusta a tu markup real)
+    const renderRow = (item, idx) => {
+      const total = item.price * item.quantity;
+      const qtyValue = isUnidadM2(item.unidadMedida) ? Number(item.quantity || 0).toFixed(2) : Number(item.quantity || 0);
+      const stepValue = (typeof item.multiplo !== 'undefined' && !isNaN(item.multiplo)) ? Number(item.multiplo).toFixed(2) : '1';
+      return `
+        <tr>
+          <td>${item.productId}</td>
+          <td>${item.productName}</td>
+          <td>${item.unidadMedida ?? "-"}</td>
+          <td>${item.multiplo ?? "-"}</td>
+          <td>
+            <input type="number" class="form-control form-control-sm" value="${qtyValue}" min="0" step="${stepValue}"
+                   onchange="adjustCartQuantity(${idx}, parseFloat(this.value))">
+          </td>
+          <td>$ ${item.price.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
+          <td>$ ${total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
+          <td>
+            <button class="btn btn-sm btn-outline-danger" onclick="removeFromCart(${idx})">
+              <i class="bi bi-trash"></i>
+            </button>
+          </td>
+        </tr>`;
+    };
 
-    if (cartClientFloat) {
-        cartClientFloat.textContent = cart.client && cart.client.nombre_cliente ? cart.client.nombre_cliente : "Sin cliente";
-    }
+    cart.items.forEach((it, i) => {
+      if (cartItemsDesktop) cartItemsDesktop.insertAdjacentHTML("beforeend", renderRow(it, i));
+      // En mÃ³vil puedes usar tarjetas; por brevedad, reutilizo una fila compacta:
+      if (cartItemsMobile) {
+        const total = it.price * it.quantity;
+        const qtyValue = isUnidadM2(it.unidadMedida) ? Number(it.quantity || 0).toFixed(2) : Number(it.quantity || 0);
+        const stepValue = (typeof it.multiplo !== 'undefined' && !isNaN(it.multiplo)) ? Number(it.multiplo).toFixed(2) : '1';
+        cartItemsMobile.insertAdjacentHTML("beforeend", `
+          <div class="cart-row-mobile p-2 mb-2 border rounded">
+            <div class="d-flex justify-content-between">
+              <strong>${it.productName}</strong>
+              <button class="btn btn-sm btn-outline-danger" onclick="removeFromCart(${i})"><i class="bi bi-trash"></i></button>
+            </div>
+            <div class="small text-muted">${it.productId} Â· ${it.unidadMedida ?? "-"}</div>
+            <div class="d-flex align-items-center gap-2 mt-2">
+              <input type="number" class="form-control form-control-sm" style="width:90px" value="${qtyValue}" min="0" step="${stepValue}"
+                     onchange="adjustCartQuantity(${i}, parseFloat(this.value))">
+              <span class="ms-auto">$ ${total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
+            </div>
+          </div>`);
+      }
+    });
+  }
 
-    let quotationIdDisplay = document.getElementById("quotationIdDisplay");
-    if (!quotationIdDisplay) {
-        quotationIdDisplay = document.createElement("p");
-        quotationIdDisplay.id = "quotationIdDisplay";
-        quotationIdDisplay.className = "text-muted mb-2";
-        if (cartClientInfo && cartClientInfo.parentElement) {
-            cartClientInfo.parentElement.insertBefore(quotationIdDisplay, cartClientInfo.nextSibling);
-        } else {
-            console.warn("No se encontró cartClientInfo o su padre para insertar quotationIdDisplay");
-        }
-    }
-    if (quotationIdDisplay) {
-        if (cart.quotation_id && cart.type !== 'new') {
-            quotationIdDisplay.textContent = `Presupuesto: ${cart.quotation_id} (${cart.type === 'd365' ? 'D365' : 'Local'})`;
-        } else {
-            quotationIdDisplay.textContent = "Nuevo Presupuesto";
-        }
-    }
+  // Totales en botÃ³n flotante y en footer del carrito
+  const totalCarrito = cart.items.reduce((acc, it) => acc + it.price * it.quantity, 0);
+  if (cartItemCount) cartItemCount.textContent = cart.items.length.toString();
+  if (cartTotalFloat) cartTotalFloat.textContent = totalCarrito.toLocaleString('es-AR', { minimumFractionDigits: 2 });
+  cartTotalFixed.textContent = totalCarrito.toLocaleString('es-AR', { minimumFractionDigits: 2 });
 
-    if (cart.client && cartClientInfo) {
-        document.getElementById("cartClientName").textContent = cart.client.nombre_cliente || "N/A";
-        document.getElementById("cartClientNumber").textContent = cart.client.numero_cliente || "N/A";
-        document.getElementById("cartClientNif").textContent = cart.client.nif || "N/A";
-        document.getElementById("cartClientAddress").textContent = cart.client.direccion_completa || "N/A";
-        cartClientInfo.style.display = "block";
-    } else if (cartClientInfo) {
-        cartClientInfo.style.display = "none";
-    }
-
-    if (cartItemsDesktop && cartItemsMobile) {
-        cartItemsDesktop.innerHTML = "";
-        cartItemsMobile.innerHTML = "";
-
-        const isMobile = window.innerWidth <= 768;
-        if (isMobile) {
-            cartItemsDesktop.parentElement.style.display = "none";
-            cartItemsMobile.parentElement.style.display = "block";
-        } else {
-            cartItemsDesktop.parentElement.style.display = "table";
-            cartItemsMobile.parentElement.style.display = "none";
-        }
-
-        let total = 0;
-        const storeId = document.getElementById("storeFilter").value || "BA001GC";
-
-        if (!cart.items || !Array.isArray(cart.items)) {
-            console.error('cart.items no está definido o no es un array:', cart.items);
-            cartItemsDesktop.innerHTML = '<tr><td colspan="8" class="text-muted">El carrito está vacío o no se pudo cargar.</td></tr>';
-            cartItemsMobile.innerHTML = '<p class="text-muted">El carrito está vacío o no se pudo cargar.</p>';
-            cartTotalFixed.textContent = '$0,00';
-            if (cartTotalFloat) {
-                cartTotalFloat.textContent = '0,00';
-            }
-            if (cartItemCount) {
-                cartItemCount.textContent = '0';
-            }
-            if (observationsInput) {
-                observationsInput.value = cartObservations;
-            }
-            return;
-        }
-
-
-        cart.items.forEach((item, index) => {
-            if (item.productId) {
-                const itemTotal = item.available !== false ? item.price * item.quantity : 0;
-                if (item.available !== false) {
-                    total += itemTotal;
-                }
-                const cajasText = calcularCajas(item.quantity, item.multiplo, item.unidadMedida);
-                const availabilityText = item.available === false ? '<span class="text-danger">No disponible en esta tienda</span>' : '';
-                const disabledAttr = item.available === false ? 'disabled' : '';
-
-                if (isMobile) {
-                    const row = document.createElement("div");
-                    row.className = "cart-row-mobile mb-3 p-2 border-bottom";
-                    row.innerHTML = `
-                        <div class="cart-row-item d-flex justify-content-between" style="width: 100%; padding: 5px 0;">
-                            <span style="font-weight: 600; min-width: 100px;"><strong>SKU:</strong></span>
-                            <span style="flex: 1; text-align: right;">${item.productId}</span>
-                        </div>
-                        <div class="cart-row-item d-flex justify-content-between" style="width: 100%; padding: 5px 0;">
-                            <span style="font-weight: 600; min-width: 100px;"><strong>Producto:</strong></span>
-                            <span style="flex: 1; text-align: right;">${item.productName} ${availabilityText}</span>
-                        </div>
-                        <div class="cart-row-item d-flex justify-content-between" style="width: 100%; padding: 5px 0;">
-                            <span style="font-weight: 600; min-width: 100px;"><strong>Unidad:</strong></span>
-                            <span style="flex: 1; text-align: right;">${item.unidadMedida || ''}</span>
-                        </div>
-                        <div class="cart-row-item d-flex justify-content-between" style="width: 100%; padding: 5px 0;">
-                            <span style="font-weight: 600; min-width: 100px;"><strong>Factor:</strong></span>
-                            <span style="flex: 1; text-align: right;">${item.multiplo !== undefined && item.multiplo !== null ? Number(item.multiplo).toFixed(2) : ''}</span>
-                        </div>
-                        <div class="cart-row-item d-flex justify-content-between" style="width: 100%; padding: 5px 0;">
-                            <span style="font-weight: 600; min-width: 100px;"><strong>Precio:</strong></span>
-                            <span style="flex: 1; text-align: right;">${item.available !== false ? '$' + formatearMoneda(item.price) : 'N/A'}</span>
-                        </div>
-                        <div class="cart-row-item d-flex justify-content-between" style="width: 100%; padding: 5px 0;">
-                            <span style="font-weight: 600; min-width: 100px;"><strong>Total:</strong></span>
-                            <span style="flex: 1; text-align: right;">${item.available !== false ? '$' + formatearMoneda(itemTotal) : 'N/A'}</span>
-                        </div>
-                        <div class="cart-row-item d-flex justify-content-end" style="width: 100%; padding: 5px 0;">
-                            <button class="btn btn-outline-primary btn-sm me-2" onclick="buscarStock(event, '${item.productName}', '${item.productId}', '${item.unidadMedida || ''}', '${storeId}')" title="Ver Stock" ${disabledAttr}>
-                                <i class="bi bi-box-seam"></i>
-                            </button>
-                            <button class="btn btn-danger btn-sm" onclick="removeFromCart(${index})" title="Eliminar">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </div>
-                        <div class="cart-row-item cart-quantity d-flex justify-content-between align-items-start" style="width: 100%; padding-top: 10px;">
-                            <span style="font-weight: 600; min-width: 100px;"><strong>Cant.:</strong></span>
-                            <div style="display: flex; flex-direction: column; align-items: flex-end;">
-                                <div class="input-group input-group-sm" style="width: 150px;">
-                                    <button class="btn btn-outline-secondary" onclick="adjustCartQuantity(${index}, -1)" ${disabledAttr}>
-                                        <i class="bi bi-dash"></i>
-                                    </button>
-                                    <input type="number" class="form-control text-center cart-quantity-input" value="${item.quantity.toFixed(2)}" min="${item.multiplo}" step="${item.multiplo}" onchange="updateCartQuantity(${index}, this.value)" ${disabledAttr}>
-                                    <button class="btn btn-outline-secondary" onclick="adjustCartQuantity(${index}, 1)" ${disabledAttr}>
-                                        <i class="bi bi-plus"></i>
-                                    </button>
-                                </div>
-                                ${cajasText ? `<small class="text-muted d-block mt-1 equivalencia-texto">${cajasText}</small>` : ""}
-                            </div>
-                        </div>
-                    `;
-                    cartItemsMobile.appendChild(row);
-                } else {
-                    const row = document.createElement("tr");
-                    row.className = "cart-row";
-                    row.innerHTML = `
-                        <td>${item.productId}</td>
-                        <td>${item.productName} ${availabilityText}</td>
-                        <td>${item.unidadMedida || ''}</td>
-                        <td>${item.multiplo !== undefined && item.multiplo !== null ? Number(item.multiplo).toFixed(2) : ''}</td>
-                        <td class="cart-quantity">
-                            <div class="quantity-wrapper">
-                                <div class="input-group input-group-sm">
-                                    <button class="btn btn-outline-secondary" onclick="adjustCartQuantity(${index}, -1)" ${disabledAttr}>
-                                        <i class="bi bi-dash"></i>
-                                    </button>
-                                    <input type="number" class="form-control text-center cart-quantity-input" value="${item.quantity.toFixed(2)}" min="${item.multiplo}" step="${item.multiplo}" onchange="updateCartQuantity(${index}, this.value)" ${disabledAttr}>
-                                    <button class="btn btn-outline-secondary" onclick="adjustCartQuantity(${index}, 1)" ${disabledAttr}>
-                                        <i class="bi bi-plus"></i>
-                                    </button>
-                                </div>
-                                ${cajasText ? `<small class="text-muted equivalencia-texto">${cajasText}</small>` : ""}
-                            </div>
-                        </td>
-                        <td>${item.available !== false ? '$' + formatearMoneda(item.price) : 'N/A'}</td>
-                        <td>${item.available !== false ? '$' + formatearMoneda(itemTotal) : 'N/A'}</td>
-                        <td class="cart-actions">
-                            <div class="action-buttons d-flex gap-2">
-                                <button class="btn btn-outline-primary btn-sm" onclick="buscarStock(event, '${item.productName}', '${item.productId}', '${item.unidadMedida || ''}', '${storeId}')" title="Ver Stock" ${disabledAttr}>
-                                    <i class="bi bi-box-seam"></i>
-                                </button>
-                                <button class="btn btn-danger btn-sm" onclick="removeFromCart(${index})" title="Eliminar">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </div>
-                        </td>
-                    `;
-                    cartItemsDesktop.appendChild(row);
-                }
-            } else {
-                console.warn(`Ítem inválido en el carrito (índice ${index}):`, item);
-            }
-        });
-
-        cartTotalFixed.textContent = `$${formatearMoneda(total)}`;
-        if (cartTotalFloat) {
-            cartTotalFloat.textContent = formatearMoneda(total);
-        }
-        if (cartItemCount) {
-            cartItemCount.textContent = cart.items.filter(item => item.productId).length;
-        }
-
-        if (observationsInput) {
-            observationsInput.value = cartObservations;
-        }
-
-    }
+  // (Opcional) mostrar ID de presupuesto si aplica
+  let quotationIdDisplay = document.getElementById("quotationIdDisplay");
+  if (!quotationIdDisplay && cartClientInfo && cartClientInfo.parentElement) {
+    quotationIdDisplay = document.createElement("p");
+    quotationIdDisplay.id = "quotationIdDisplay";
+    quotationIdDisplay.className = "text-muted mb-2";
+    cartClientInfo.parentElement.insertBefore(quotationIdDisplay, cartClientInfo.nextSibling);
+  }
+  if (quotationIdDisplay) {
+    quotationIdDisplay.textContent = (cart.quotation_id && cart.type !== 'new')
+      ? `Presupuesto: ${cart.quotation_id} (${cart.type === 'd365' ? 'D365' : 'Local'})`
+      : "Nuevo Presupuesto";
+  }
 }
 
 window.addEventListener("resize", () => {
@@ -2056,7 +2060,7 @@ window.addEventListener("resize", () => {
 function updateCartQuantity(index, newQuantity) {
     const quantity = parseFloat(newQuantity);
     if (!cart.items[index]) {
-        console.warn(`Ítem en índice ${index} no existe en cart.items`);
+        console.warn(`Ãtem en Ã­ndice ${index} no existe en cart.items`);
         return;
     }
     const cantidadValidada = validarCantidad(cart.items[index].multiplo, quantity);
@@ -2084,16 +2088,16 @@ function updateCartQuantity(index, newQuantity) {
 
 function adjustCartQuantity(index, delta) {
     try {
-        // Validar que el ítem existe y tiene las propiedades necesarias
+        // Validar que el Ã­tem existe y tiene las propiedades necesarias
         if (!cart.items[index]) {
-            throw new Error(`Ítem en índice ${index} no existe en cart.items`);
+            throw new Error(`Ãtem en Ã­ndice ${index} no existe en cart.items`);
         }
         if (typeof cart.items[index].quantity !== 'number' || isNaN(cart.items[index].quantity)) {
-            console.warn(`Cantidad inválida para ítem ${index}, inicializando a 1:`, cart.items[index].quantity);
+            console.warn(`Cantidad invÃ¡lida para Ã­tem ${index}, inicializando a 1:`, cart.items[index].quantity);
             cart.items[index].quantity = 1;
         }
         if (typeof cart.items[index].multiplo !== 'number' || isNaN(cart.items[index].multiplo)) {
-            console.warn(`Múltiplo inválido para ítem ${index}, inicializando a 1:`, cart.items[index].multiplo);
+            console.warn(`MÃºltiplo invÃ¡lido para Ã­tem ${index}, inicializando a 1:`, cart.items[index].multiplo);
             cart.items[index].multiplo = 1;
         }
 
@@ -2171,29 +2175,55 @@ function removeFromCart(index) {
         ]).then(() => {
             updateCartDisplay();
         }).catch(error => {
-            console.error('Error al eliminar ítem del carrito:', error);
+            console.error('Error al eliminar Ã­tem del carrito:', error);
             showToast('danger', 'Error al eliminar el producto');
         });
     });
 }
 
+// === Reemplazo completo de toggleCart ===
 function toggleCart() {
-    const cartOverlay = document.getElementById("cartOverlay");
-    cartOverlay.classList.toggle("d-none");
-    updateCartDisplay();
+  const cartOverlay = document.getElementById("cartOverlay");
+  if (!cartOverlay) {
+    console.warn("toggleCart: No existe #cartOverlay en esta vista. AsegÃºrate de usar layout.html o de incluir el overlay.");
+    showToast?.('warning', 'Carrito no disponible en esta vista.');
+    return;
+  }
+  cartOverlay.classList.toggle("d-none");
+  // Al abrir/cerrar, refrescamos el contenido por si hubo cambios
+  try { updateCartDisplay(); } catch (e) { console.error(e); }
 }
 
+// === Reemplazo completo del bloque que registra listeners en DOMContentLoaded ===
 document.addEventListener("DOMContentLoaded", function () {
-    const quantityInput = document.getElementById("quantityInput");
+  // 1) Asignar cambio de cantidad en el modal de cantidad (si existe)
+  const quantityInput = document.getElementById("quantityInput");
+  if (quantityInput) {
     quantityInput.addEventListener("change", function () {
-        const quantity = parseFloat(this.value);
-        const cantidadValidada = validarCantidad(currentProductToAdd.multiplo, quantity);
-        this.value = cantidadValidada;
-        const cajasElement = document.getElementById("quantityModalCajas");
-        cajasElement.textContent = calcularCajas(cantidadValidada, currentProductToAdd.multiplo, currentProductToAdd.unidadMedida);
-        updateTotal();
+      const quantity = parseFloat(this.value);
+      const multiplo = (currentProductToAdd && currentProductToAdd.multiplo) || 1;
+      const unidad   = (currentProductToAdd && currentProductToAdd.unidadMedida) || '';
+      const cantidadValidada = validarCantidad(multiplo, quantity);
+      this.value = cantidadValidada;
+
+      const cajasElement = document.getElementById("quantityModalCajas");
+      if (cajasElement) {
+        cajasElement.textContent = calcularCajas(cantidadValidada, multiplo, unidad);
+      }
+      updateTotal?.();
     });
+  }
+
+  // 2) Unificar el click del botÃ³n flotante del carrito (si existe)
+  const cartButton = document.querySelector('.cart-float-btn');
+  if (cartButton) {
+    cartButton.onclick = function () {
+      toggleCart();              // abrir/cerrar overlay
+      toggleCartButtonDetails?.(); // expandir/colapsar detalles en el botÃ³n
+    };
+  }
 });
+
 
 function showClientDetailsModal() {
     const modalElement = document.getElementById("clientDetailsModal");
@@ -2208,12 +2238,12 @@ function showClientDetailsModal() {
         return;
     }
     if (typeof bootstrap === "undefined" || !bootstrap.Modal) {
-        console.error("Error: Bootstrap no está cargado o la clase Modal no está definida.");
-        showToast("danger", "Error de configuración: Bootstrap no está disponible.");
+        console.error("Error: Bootstrap no estÃ¡ cargado o la clase Modal no estÃ¡ definida.");
+        showToast("danger", "Error de configuraciÃ³n: Bootstrap no estÃ¡ disponible.");
         return;
     }
 
-    // Llenar los datos del cliente (ya se hace en selectClient, pero usamos los mismos datos aquí)
+    // Llenar los datos del cliente (ya se hace en selectClient, pero usamos los mismos datos aquÃ­)
     document.getElementById("modalClientName").textContent = cart.client.nombre_cliente || "N/A";
     document.getElementById("modalClientNumber").textContent = cart.client.numero_cliente || "N/A";
     document.getElementById("modalClientBlocked").textContent = cart.client.bloqueado || "N/A";
@@ -2232,13 +2262,13 @@ function showClientDetailsModal() {
     modal.show();
 }
 
-// Variable global para almacenar el número del presupuesto
+// Variable global para almacenar el nÃºmero del presupuesto
 let lastQuotationNumber = null;
 
-// Mostrar modal de selección de tipo
+// Mostrar modal de selecciÃ³n de tipo
 function showQuotationTypeModal() {
   if (!cart.items.length) {
-    showToast('danger', 'El carrito está vacío.');
+    showToast('danger', 'El carrito estÃ¡ vacÃ­o.');
     return;
   }
   if (!cart.client || !cart.client.numero_cliente) {
@@ -2255,7 +2285,7 @@ async function createInD365WithType(tipo_presupuesto) {
     typeModal.hide();
 
     if (!cart.items.length) {
-        showToast('danger', 'El carrito está vacío.');
+        showToast('danger', 'El carrito estÃ¡ vacÃ­o.');
         return;
     }
 
@@ -2266,7 +2296,7 @@ async function createInD365WithType(tipo_presupuesto) {
 
     showSpinner();
     try {
-        const storeId = document.getElementById("storeFilter").value || "BA001GC";
+        const __sf = document.getElementById("storeFilter") || document.getElementById("storeFilterRetail"); const storeId = __sf ? (__sf.value || "BA001GC") : (typeof getLastStore === "function" ? getLastStore() : "BA001GC");
         const payload = {
             cart: {
                 items: cart.items.filter(item => item.productId),
@@ -2300,10 +2330,10 @@ async function createInD365WithType(tipo_presupuesto) {
         lastQuotationNumber = result.quotation_number;
         toggleCart();
 
-        // Mostrar modal de confirmación para imprimir
+        // Mostrar modal de confirmaciÃ³n para imprimir
         await showPrintConfirmationModal(lastQuotationNumber, tipo_presupuesto);
 
-        // No limpiar aquí, se manejará en closePrintModal
+        // No limpiar aquÃ­, se manejarÃ¡ en closePrintModal
     } catch (error) {
         console.error("Error al procesar en D365:", error);
         showToast('danger', `Error: ${error.message}`);
@@ -2312,22 +2342,22 @@ async function createInD365WithType(tipo_presupuesto) {
     }
 }
 
-// Mostrar modal de confirmación de impresión
+// Mostrar modal de confirmaciÃ³n de impresiÃ³n
 function showPrintConfirmationModal(quotationNumber, tipo) {
     const modal = new bootstrap.Modal(document.getElementById('printConfirmationModal'));
     document.getElementById('printConfirmationMessage').textContent =
-        `Se generó correctamente el presupuesto ${quotationNumber} (${tipo}).`;
+        `Se generÃ³ correctamente el presupuesto ${quotationNumber} (${tipo}).`;
     modal.show();
 }
 
-// Cerrar modal de confirmación y manejar la acción
+// Cerrar modal de confirmaciÃ³n y manejar la acciÃ³n
 function closePrintModal(print) {
     const modal = bootstrap.Modal.getInstance(document.getElementById('printConfirmationModal'));
     modal.hide();
 
     if (print) {
         generatePDF().then(() => {
-            // Limpiar carrito y observaciones después de generar el PDF
+            // Limpiar carrito y observaciones despuÃ©s de generar el PDF
             cartObservations = "";
             const obsInput = document.getElementById("cartObservations");
             if (obsInput) obsInput.value = "";
@@ -2335,7 +2365,7 @@ function closePrintModal(print) {
             delete cart.type;
             clearCart();
 
-            // Sincronizar el carrito después de limpiar
+            // Sincronizar el carrito despuÃ©s de limpiar
             const timestamp = new Date().toISOString();
             getUserId().then(userId => {
                 if (!userId) {
@@ -2351,14 +2381,14 @@ function closePrintModal(print) {
                 ]).then(() => {
                     updateCartDisplay();
                 }).catch(error => {
-                    console.error('Error al sincronizar el carrito después de limpiar:', error);
+                    console.error('Error al sincronizar el carrito despuÃ©s de limpiar:', error);
                 });
             });
         }).catch(error => {
             console.error("Error al generar PDF:", error);
             showToast('danger', 'Error al generar el PDF.');
 
-            // Limpiar carrito y observaciones incluso si falla la generación del PDF
+            // Limpiar carrito y observaciones incluso si falla la generaciÃ³n del PDF
             cartObservations = "";
             const obsInput = document.getElementById("cartObservations");
             if (obsInput) obsInput.value = "";
@@ -2366,7 +2396,7 @@ function closePrintModal(print) {
             delete cart.type;
             clearCart();
 
-            // Sincronizar el carrito después de limpiar
+            // Sincronizar el carrito despuÃ©s de limpiar
             const timestamp = new Date().toISOString();
             getUserId().then(userId => {
                 if (!userId) {
@@ -2382,7 +2412,7 @@ function closePrintModal(print) {
                 ]).then(() => {
                     updateCartDisplay();
                 }).catch(error => {
-                    console.error('Error al sincronizar el carrito después de limpiar:', error);
+                    console.error('Error al sincronizar el carrito despuÃ©s de limpiar:', error);
                 });
             });
         });
@@ -2395,7 +2425,7 @@ function closePrintModal(print) {
         delete cart.type;
         clearCart();
 
-        // Sincronizar el carrito después de limpiar
+        // Sincronizar el carrito despuÃ©s de limpiar
         const timestamp = new Date().toISOString();
         getUserId().then(userId => {
             if (!userId) {
@@ -2411,13 +2441,13 @@ function closePrintModal(print) {
             ]).then(() => {
                 updateCartDisplay();
             }).catch(error => {
-                console.error('Error al sincronizar el carrito después de limpiar:', error);
+                console.error('Error al sincronizar el carrito despuÃ©s de limpiar:', error);
             });
         });
     }
 }
 
-// Función para mostrar toast
+// FunciÃ³n para mostrar toast
 function showToast(type, message) {
     const toastContainer = document.querySelector('.toast-container');
     if (!toastContainer) return;
@@ -2433,16 +2463,16 @@ function showToast(type, message) {
     toastContainer.appendChild(toast);
     const bsToast = new bootstrap.Toast(toast);
     bsToast.show();
-    setTimeout(() => toast.remove(), 5000); // Remover después de 5 segundos
+    setTimeout(() => toast.remove(), 5000); // Remover despuÃ©s de 5 segundos
 }
 
 function generatePDF() {
     return new Promise((resolve, reject) => {
 
         if (typeof window.jspdf === 'undefined' || !window.jspdf.jsPDF) {
-            console.error("jsPDF no está definido. Asegúrate de que la biblioteca esté cargada.");
+            console.error("jsPDF no estÃ¡ definido. AsegÃºrate de que la biblioteca estÃ© cargada.");
             showToast('danger', 'Error: No se pudo generar el PDF. Falta la biblioteca jsPDF.');
-            reject(new Error("jsPDF no está definido"));
+            reject(new Error("jsPDF no estÃ¡ definido"));
             return;
         }
 
@@ -2477,8 +2507,8 @@ function generatePDF() {
             year: "numeric"
         });
 
-        const storeId = document.getElementById("storeFilter").value || "BA001GC";
-        let direccionSucursal = "Dirección no disponible";
+        const __sf = document.getElementById("storeFilter") || document.getElementById("storeFilterRetail"); const storeId = __sf ? (__sf.value || "BA001GC") : (typeof getLastStore === "function" ? getLastStore() : "BA001GC");
+        let direccionSucursal = "DirecciÃ³n no disponible";
         let vendedor = "Vendedor no disponible";
 
         const cartItems = JSON.parse(JSON.stringify(cart.items.filter(item => item.productId)));
@@ -2522,7 +2552,7 @@ function generatePDF() {
                     resolve(footerHeight);
                 };
                 img.onerror = () => {
-                    console.warn("No se pudo cargar el pie de página.");
+                    console.warn("No se pudo cargar el pie de pÃ¡gina.");
                     resolve(FOOTER_HEIGHT);
                 };
                 img.src = "/static/img/pie.png";
@@ -2557,7 +2587,7 @@ function generatePDF() {
             const pageWidth = doc.internal.pageSize.getWidth();
             let currentY = 10;
 
-            // Título
+            // TÃ­tulo
             doc.setFontSize(16);
             const titleWidth = doc.getTextWidth("Presupuesto");
             currentY = checkPageBreak(currentY, 15, footerHeight);
@@ -2569,16 +2599,16 @@ function generatePDF() {
             currentY = checkPageBreak(currentY, 18, footerHeight);
             doc.text(`Presupuesto Nro. ${lastQuotationNumber || 'N/A'}`, 10, currentY);
             doc.text(`Fecha y Hora: ${currentDate}`, 10, currentY + 6);
-            doc.text(`Válido hasta: ${validUntil}`, 10, currentY + 12);
+            doc.text(`VÃ¡lido hasta: ${validUntil}`, 10, currentY + 12);
             currentY += 18;
 
-            // Dirección sucursal
+            // DirecciÃ³n sucursal
             currentY = checkPageBreak(currentY, 10, footerHeight);
             try {
                 const response = await fetch(`/api/datos_tienda/${storeId}`);
                 if (!response.ok) throw new Error("Error al obtener datos de la sucursal");
                 const data = await response.json();
-                direccionSucursal = data.direccion_completa_unidad_operativa || "Dirección no disponible";
+                direccionSucursal = data.direccion_completa_unidad_operativa || "DirecciÃ³n no disponible";
             } catch (error) {
                 console.error("Error al obtener datos de la sucursal:", error);
             }
@@ -2593,9 +2623,9 @@ function generatePDF() {
             const clienteNombre = cartCopy.client?.nombre_cliente || "Consumidor Final";
             const clienteId = cartCopy.client?.numero_cliente || "N/A";
             const clienteIva = cartCopy.client?.tipo_contribuyente || "N/A";
-            doc.text(`Código de Cliente: ${clienteId}`, 10, currentY + 8);
+            doc.text(`CÃ³digo de Cliente: ${clienteId}`, 10, currentY + 8);
             doc.text(`Nombre de Cliente: ${clienteNombre}`, 10, currentY + 14);
-            doc.text(`Condición IVA: ${clienteIva}`, 10, currentY + 20);
+            doc.text(`CondiciÃ³n IVA: ${clienteIva}`, 10, currentY + 20);
             currentY += 25;
 
             // Vendedor
@@ -2614,8 +2644,8 @@ function generatePDF() {
 
             // Tabla de productos
             const tableHeaders = [
-                "Código",
-                "Descripción",
+                "CÃ³digo",
+                "DescripciÃ³n",
                 "Cantidad",
                 "U.M",
                 "Precio Unitario Lista",
@@ -2699,7 +2729,7 @@ function generatePDF() {
             currentY = checkPageBreak(currentY, 10, footerHeight);
             doc.setFontSize(8);
             currentY = addTextWithPageBreak("Condiciones Generales:", 10, currentY, footerHeight);
-            currentY = addTextWithPageBreak("• Oferta no vinculante, sujeta a modificación sin previo aviso", 15, currentY, footerHeight);
+            currentY = addTextWithPageBreak("â€¢ Oferta no vinculante, sujeta a modificaciÃ³n sin previo aviso", 15, currentY, footerHeight);
 
             // Observaciones
             currentY = checkPageBreak(currentY, 10, footerHeight);
@@ -2724,7 +2754,7 @@ function generatePDF() {
                 return sum + price * quantity;
             }, 0);
 
-            // Crear tabla de totales solo si hay descuentos o un total válido
+            // Crear tabla de totales solo si hay descuentos o un total vÃ¡lido
             const totalRows = [];
             if (totalDescuentos > 0) {
                 totalRows.push(["Total de descuentos aplicados", "", "", "", "", "", `$${formatearMoneda(totalDescuentos)}`]);
@@ -2784,7 +2814,7 @@ function generatePDF() {
     });
 }
 
-// Abrir el modal de búsqueda de clientes
+// Abrir el modal de bÃºsqueda de clientes
 function openClientSearchModal() {
     const modal = new bootstrap.Modal(document.getElementById("clientSearchModal"));
     document.getElementById("clientSearchInput").value = "";
@@ -2795,7 +2825,7 @@ function openClientSearchModal() {
     setTimeout(() => document.getElementById("clientSearchInput").focus(), 500);
 }
 
-// Búsqueda al presionar Enter
+// BÃºsqueda al presionar Enter
 document.addEventListener("DOMContentLoaded", function () {
     const addClientButton = document.querySelector('.btn-outline-success.ms-2');
     if (addClientButton) {
@@ -2826,7 +2856,7 @@ async function searchClients(query) {
         const clients = await fetchWithAuth(`/api/clientes/search?query=${encodeURIComponent(query)}`);
         displayClientSearchResults(clients);
     } catch (error) {
-        console.error("Error en búsqueda de clientes:", error);
+        console.error("Error en bÃºsqueda de clientes:", error);
         document.getElementById("clientSearchResults").innerHTML = '<p class="text-danger">Error al buscar clientes: ' + error.message + '</p>';
     } finally {
         hideSpinner();
@@ -2909,7 +2939,7 @@ function addClientToCart() {
             bootstrap.Modal.getInstance(document.getElementById('clientSearchModal')).hide();
         }).catch(error => {
             console.error('Error al guardar cliente en el carrito:', error);
-            showToast('danger', 'Error al añadir el cliente');
+            showToast('danger', 'Error al aÃ±adir el cliente');
         });
     });
 }
@@ -2948,11 +2978,11 @@ function removeClientFromCart() {
                         syncCartWithBackend(userId, cart, timestamp)
                     ]).then(() => {
                         updateCartDisplay();
-                        showToast('success', 'Cliente eliminado. Se generará un nuevo presupuesto.');
+                        showToast('success', 'Cliente eliminado. Se generarÃ¡ un nuevo presupuesto.');
                     });
                 });
             } else {
-                showToast('info', 'Eliminación de cliente cancelada.');
+                showToast('info', 'EliminaciÃ³n de cliente cancelada.');
             }
         });
     } else {
@@ -2971,7 +3001,7 @@ function removeClientFromCart() {
 
 async function invoiceCart() {
     if (!cart.items.length) {
-        showToast('danger', 'El carrito está vacío.');
+        showToast('danger', 'El carrito estÃ¡ vacÃ­o.');
         return;
     }
 
@@ -3006,7 +3036,7 @@ async function invoiceCart() {
 
 async function generatePdfOnly() {
     if (!cart.items.length) {
-        showToast('danger', 'El carrito está vacío.');
+        showToast('danger', 'El carrito estÃ¡ vacÃ­o.');
         return;
     }
 
@@ -3015,7 +3045,7 @@ async function generatePdfOnly() {
         const data = await fetchWithAuth('/api/generate_pdf_quotation_id');
         lastQuotationNumber = data.quotation_id;
 
-        const storeId = document.getElementById("storeFilter").value || "BA001GC";
+        const __sf = document.getElementById("storeFilter") || document.getElementById("storeFilterRetail"); const storeId = __sf ? (__sf.value || "BA001GC") : (typeof getLastStore === "function" ? getLastStore() : "BA001GC");
         const quotationData = {
             quotation_id: lastQuotationNumber,
             type: "local",
@@ -3068,6 +3098,18 @@ async function generatePdfOnly() {
 function openPaymentSimulator() {
     const totalStr = document.getElementById('cartTotalFloat')?.textContent || '0';
     const total = parseFloat(totalStr.replace(/\./g, '').replace(',', '.')) || 0;
+    if (!total || total <= 0) {
+        try { showToast('info', 'Agregá productos al carrito para simular pagos.'); } catch(_) {}
+        return;
+    }
+    const externalBase = (window.SIMULATOR_EXT_URL || window.SIMULATOR_V5_URL || '').trim();
+    if (externalBase) {
+        // Prioriza abrir el simulador externo del ERP (puerto 8001)
+        const url = externalBase + (externalBase.includes('?') ? '&' : '?') + `total=${total}`;
+        window.open(url, '_blank');
+        return;
+    }
+    // Fallback: simulador interno (pÃ¡gina propia)
     try {
         const modalEl = document.getElementById('paymentSimulatorModal');
         const frame = document.getElementById('paymentSimulatorFrame');
@@ -3086,10 +3128,12 @@ function openPaymentSimulator() {
 
 function toggleCartButtonDetails() {
     const cartButton = document.querySelector('.cart-float-btn');
+    const navCartBtn = document.getElementById('navbarCartBtn');
+    if (navCartBtn) { navCartBtn.addEventListener('click', () => toggleCart()); }
     cartButton.classList.toggle('expanded');
 }
 
-// Asegúrate de que el evento onclick del botón combine ambas acciones
+// AsegÃºrate de que el evento onclick del botÃ³n combine ambas acciones
 document.addEventListener("DOMContentLoaded", function () {
     const cartButton = document.querySelector('.cart-float-btn');
     if (cartButton) {
@@ -3099,7 +3143,7 @@ document.addEventListener("DOMContentLoaded", function () {
             toggleCartButtonDetails(); // Mostrar/ocultar detalles
         };
 
-        // Opcional: Cerrar detalles al salir del hover si no está expandido manualmente
+        // Opcional: Cerrar detalles al salir del hover si no estÃ¡ expandido manualmente
         cartButton.addEventListener('mouseleave', function () {
             if (!this.classList.contains('expanded')) {
                 this.classList.remove('expanded');
@@ -3109,10 +3153,36 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const simulatorModal = document.getElementById('paymentSimulatorModal');
     if (simulatorModal) {
+        // Bloquear apertura si total es 0 cuando se use data attributes
+        simulatorModal.addEventListener('show.bs.modal', function (ev) {
+            const totalStr = document.getElementById('cartTotalFloat')?.textContent || '0';
+            const total = parseFloat(totalStr.replace(/\./g, '').replace(',', '.')) || 0;
+            if (!total || total <= 0) {
+                ev.preventDefault();
+                try { showToast('info', 'Agregá productos al carrito para simular pagos.'); } catch(_) {}
+            }
+        });
         simulatorModal.addEventListener('hidden.bs.modal', () => {
             const cartOverlay = document.getElementById('cartOverlay');
             if (cartOverlay && cartOverlay.classList.contains('d-none')) {
                 cartOverlay.classList.remove('d-none');
+            }
+        });
+    }
+    // Evitar abrir modalPagos (POS) si total es 0
+    const modalPagos = document.getElementById('modalPagos');
+    if (modalPagos) {
+        modalPagos.addEventListener('show.bs.modal', function (ev) {
+            try {
+                const t = (typeof calcularTotalesPOS === 'function') ? calcularTotalesPOS().total : 0;
+                if (!t || t <= 0) {
+                    ev.preventDefault();
+                    showToast('info', 'Agregá productos al carrito para simular pagos.');
+                }
+            } catch (_) {
+                // Si falla el cálculo, evitar apertura por seguridad
+                ev.preventDefault();
+                try { showToast('info', 'Agregá productos al carrito para simular pagos.'); } catch {}
             }
         });
     }
@@ -3127,8 +3197,8 @@ function openAddClientModal() {
         return;
     }
     if (typeof bootstrap === "undefined" || !bootstrap.Modal) {
-        console.error("Error: Bootstrap no está cargado o la clase Modal no está definida.");
-        showToast("danger", "Error de configuración: Bootstrap no está disponible.");
+        console.error("Error: Bootstrap no estÃ¡ cargado o la clase Modal no estÃ¡ definida.");
+        showToast("danger", "Error de configuraciÃ³n: Bootstrap no estÃ¡ disponible.");
         return;
     }
     const modal = new bootstrap.Modal(modalElement);
@@ -3156,7 +3226,7 @@ let selectedCityData = null;
 
 function initMap() {
     if (typeof google === 'undefined' || !google.maps) {
-        console.error("Google Maps no está cargado aún. Esperando carga...");
+        console.error("Google Maps no estÃ¡ cargado aÃºn. Esperando carga...");
         setTimeout(initMap, 500);
         return;
     }
@@ -3185,7 +3255,7 @@ function initMap() {
                 updateLatLongFields(userLocation.lat, userLocation.lng);
             },
             (error) => {
-                console.warn("Error al obtener la ubicación del usuario:", error.message);
+                console.warn("Error al obtener la ubicaciÃ³n del usuario:", error.message);
             },
             {
                 enableHighAccuracy: true,
@@ -3237,7 +3307,7 @@ function geocodeFullAddress() {
         return;
     }
 
-    // Construir la dirección completa con código postal
+    // Construir la direcciÃ³n completa con cÃ³digo postal
     const address = `${street}${streetNumber ? " " + streetNumber : " S/N"}, ${selectedCityData.AddressCity}, ${selectedCityData.CountyName}, Argentina`;
 
     const displayElement = document.getElementById("geocodeAddressDisplay");
@@ -3250,26 +3320,26 @@ function geocodeFullAddress() {
             map.setZoom(15);
             marker.setPosition(location);
             updateLatLongFields(location.lat(), location.lng());
-            displayElement.textContent = `Geolocalización exitosa: ${address} (Lat: ${location.lat().toFixed(6)}, Lng: ${location.lng().toFixed(6)})`;
+            displayElement.textContent = `GeolocalizaciÃ³n exitosa: ${address} (Lat: ${location.lat().toFixed(6)}, Lng: ${location.lng().toFixed(6)})`;
         } else {
-            console.warn("Geocodificación fallida:", status);
-            showToast('warning', 'No se pudo geolocalizar la dirección ingresada. Ajuste el marcador manualmente.');
-            displayElement.textContent = `Fallo en geolocalización: ${address} (Estado: ${status})`;
+            console.warn("GeocodificaciÃ³n fallida:", status);
+            showToast('warning', 'No se pudo geolocalizar la direcciÃ³n ingresada. Ajuste el marcador manualmente.');
+            displayElement.textContent = `Fallo en geolocalizaciÃ³n: ${address} (Estado: ${status})`;
         }
     });
 }
 
-// Función para obtener la dirección desde coordenadas (geocodificación inversa)
+// FunciÃ³n para obtener la direcciÃ³n desde coordenadas (geocodificaciÃ³n inversa)
 function reverseGeocode(lat, lng) {
     const latlng = { lat: parseFloat(lat), lng: parseFloat(lng) };
     geocoder.geocode({ location: latlng }, (results, status) => {
         if (status === "OK" && results[0]) {
             updateLatLongFields(lat, lng);
             const displayElement = document.getElementById("geocodeAddressDisplay");
-            displayElement.textContent = `Ubicación ajustada manualmente: Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)} (Dirección aproximada: ${results[0].formatted_address})`;
+            displayElement.textContent = `UbicaciÃ³n ajustada manualmente: Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)} (DirecciÃ³n aproximada: ${results[0].formatted_address})`;
         } else {
-            console.warn("Geocodificación inversa fallida:", status);
-            showToast('warning', 'No se pudo obtener la dirección a partir de las coordenadas.');
+            console.warn("GeocodificaciÃ³n inversa fallida:", status);
+            showToast('warning', 'No se pudo obtener la direcciÃ³n a partir de las coordenadas.');
         }
     });
 }
@@ -3284,7 +3354,7 @@ function updateLatLongFields(lat, lng) {
     }
 }
 
-// Ajustar las funciones existentes para integrar la geolocalización
+// Ajustar las funciones existentes para integrar la geolocalizaciÃ³n
 function fillAddressFields() {
     const citySelect = document.getElementById("newClientCitySelect");
     const selectedCity = citySelect.value;
@@ -3305,14 +3375,14 @@ function fillAddressFields() {
 
 let videoStream = null;
 
-// Abrir el modal del escáner
+// Abrir el modal del escÃ¡ner
 function openScannerModal() {
     const modal = new bootstrap.Modal(document.getElementById("scannerModal"));
     modal.show();
     startScanner();
 }
 
-// Iniciar el escáner
+// Iniciar el escÃ¡ner
 function startScanner() {
     const video = document.getElementById("scannerVideo");
     const scannerStatus = document.getElementById("scannerStatus");
@@ -3327,15 +3397,15 @@ function startScanner() {
                 scanCode(video);
             })
             .catch(err => {
-                console.error("Error al acceder a la cámara:", err);
-                scannerStatus.textContent = "No se pudo acceder a la cámara. Por favor, permite el acceso.";
+                console.error("Error al acceder a la cÃ¡mara:", err);
+                scannerStatus.textContent = "No se pudo acceder a la cÃ¡mara. Por favor, permite el acceso.";
             });
     } else {
         scannerStatus.textContent = "El escaneo no es compatible con este dispositivo.";
     }
 }
 
-// Detener el escáner
+// Detener el escÃ¡ner
 function stopScanner() {
     if (videoStream) {
         videoStream.getTracks().forEach(track => track.stop());
@@ -3345,7 +3415,7 @@ function stopScanner() {
     video.srcObject = null;
 }
 
-// Escanear QR o código de barras
+// Escanear QR o cÃ³digo de barras
 function scanCode(video) {
     const canvas = document.createElement("canvas");
     const context = canvas.getContext("2d");
@@ -3364,7 +3434,7 @@ function scanCode(video) {
                 return;
             }
 
-            // Intentar escanear código de barras con QuaggaJS
+            // Intentar escanear cÃ³digo de barras con QuaggaJS
             Quagga.decodeSingle({
                 src: canvas.toDataURL("image/png"),
                 numOfWorkers: 0, // Desactiva workers para simplicidad
@@ -3399,11 +3469,11 @@ function handleScanResult(code) {
         if (match && match[2]) {
             productCode = match[2]; // Extraer el codigo_articulo antes de .html
         } else {
-            showToast("warning", `El código escaneado no parece ser una URL válida, usando como código directo: ${code}`);
+            showToast("warning", `El cÃ³digo escaneado no parece ser una URL vÃ¡lida, usando como cÃ³digo directo: ${code}`);
         }
     } catch (error) {
         console.error("Error al procesar la URL escaneada:", error);
-        showToast("danger", "Error al procesar el código escaneado.");
+        showToast("danger", "Error al procesar el cÃ³digo escaneado.");
         return;
     }
 
@@ -3428,7 +3498,7 @@ function handleScanResult(code) {
         });
 }
 
-// Nueva función para abrir el modal de cantidad desde el escaneo
+// Nueva funciÃ³n para abrir el modal de cantidad desde el escaneo
 function showQuantityModalFromScan(productId, productName, price) {
     const parsedPrice = convertirMonedaANumero(String(price));
     const product = products.find(p => p.numero_producto === productId) || {
@@ -3455,12 +3525,13 @@ function showQuantityModalFromScan(productId, productName, price) {
     document.getElementById("quantityModalProductName").textContent = productName;
     document.getElementById("quantityModalProductPrice").textContent = `$${formatearMoneda(parsedPrice)}`;
     const input = document.getElementById("quantityInput");
-    input.value = multiplo;
+    input.value = formatCantidadPorUnidad(multiplo, unidadMedida);
     input.min = multiplo;
+    input.step = String(Number(multiplo || 1).toFixed(2));
     document.getElementById("quantityModalUnitMeasure").textContent = unidadMedida;
 
     const cantidadInicial = validarCantidad(multiplo, multiplo);
-    input.value = cantidadInicial;
+    input.value = formatCantidadPorUnidad(cantidadInicial, unidadMedida);
     const cajasElement = document.getElementById("quantityModalCajas");
     cajasElement.textContent = calcularCajas(cantidadInicial, multiplo, unidadMedida);
     updateTotal();
@@ -3494,11 +3565,11 @@ function openRecoverQuotationModal() {
     searchInput.value = '';
     document.getElementById('quotationList').innerHTML = '';
 
-    // Ejecutar búsqueda inicial
+    // Ejecutar bÃºsqueda inicial
     searchQuotations();
 }
 
-// Buscar presupuestos según el tipo seleccionado
+// Buscar presupuestos segÃºn el tipo seleccionado
 async function searchQuotations() {
     const query = document.getElementById("quotationSearchInput").value.trim();
     const type = document.getElementById("quotationTypeSelect").value;
@@ -3546,7 +3617,7 @@ async function searchQuotations() {
             });
         } else if (type === "d365") {
             if (!query.startsWith("VENT1-")) {
-                quotationList.innerHTML = '<p class="text-muted">Ingresa un ID válido de D365 (VENT1-XXXXX).</p>';
+                quotationList.innerHTML = '<p class="text-muted">Ingresa un ID vÃ¡lido de D365 (VENT1-XXXXX).</p>';
                 return;
             }
 
@@ -3569,7 +3640,7 @@ async function searchQuotations() {
                 return;
             }
 
-            // Generar un único elemento para el presupuesto
+            // Generar un Ãºnico elemento para el presupuesto
             const item = document.createElement("a");
             item.href = "#";
             item.className = "list-group-item list-group-item-action";
@@ -3588,7 +3659,7 @@ async function searchQuotations() {
             quotationList.appendChild(item);
         }
 
-        // Agregar manejador delegado para depuración
+        // Agregar manejador delegado para depuraciÃ³n
         quotationList.addEventListener('click', handleQuotationClick);
     } catch (error) {
         console.error('DEBUG: Error al buscar presupuestos:', error);
@@ -3637,19 +3708,19 @@ async function loadQuotation(quotationId, type) {
         }
         const quotation = await response.json();
 
-        // Verificar si el presupuesto D365 está confirmado
+        // Verificar si el presupuesto D365 estÃ¡ confirmado
         if (type === 'd365' && quotation.header.SalesQuotationStatus === "Confirmed") {
             const createNew = await showConfirmedQuotationModal(quotation.quotation_id, quotation.header.GeneratedSalesOrderNumber);
             if (!createNew) {
                 showToast('info', 'Carga del presupuesto cancelada.');
                 return; // Salir si el usuario cancela
             }
-            // Si el usuario elige crear un nuevo presupuesto, cargar las líneas como un nuevo presupuesto
+            // Si el usuario elige crear un nuevo presupuesto, cargar las lÃ­neas como un nuevo presupuesto
             quotation.quotation_id = null;
             quotation.type = 'new';
         }
 
-        // Verificar si el presupuesto D365 contenía ítems de flete o servicio
+        // Verificar si el presupuesto D365 contenÃ­a Ã­tems de flete o servicio
         if (type === 'd365' && quotation.has_flete) {
             const continueLoading = await showFleteWarningModal();
             if (!continueLoading) {
@@ -3666,7 +3737,7 @@ async function loadQuotation(quotationId, type) {
             type: quotation.quotation_id ? type : 'new',
             observations: quotation.observations || ''
         };
-        // Mapear ítems directamente
+        // Mapear Ã­tems directamente
         const itemsWithNumericPrices = (quotation.items || []).map(item => ({
             productId: item.productId || '',
             productName: item.productName || 'Producto desconocido',
@@ -3713,7 +3784,7 @@ function showConfirmedQuotationModal(quotationId, orderNumber) {
     return new Promise((resolve) => {
         const modalElement = document.getElementById('confirmedQuotationModal');
         if (!modalElement) {
-            console.error('Error: No se encontró el elemento con ID "confirmedQuotationModal" en el DOM.');
+            console.error('Error: No se encontrÃ³ el elemento con ID "confirmedQuotationModal" en el DOM.');
             showToast('danger', 'No se pudo abrir el modal de advertencia de presupuesto confirmado.');
             resolve(false); // Continuar sin mostrar el modal
             return;
@@ -3758,7 +3829,7 @@ function showFleteWarningModal() {
     return new Promise((resolve) => {
         const modalElement = document.getElementById('fleteWarningModal');
         if (!modalElement) {
-            console.error('Error: No se encontró el elemento con ID "fleteWarningModal" en el DOM.');
+            console.error('Error: No se encontrÃ³ el elemento con ID "fleteWarningModal" en el DOM.');
             showToast('danger', 'No se pudo abrir el modal de advertencia de flete.');
             resolve(false); // Continuar sin mostrar el modal
             return;
@@ -3810,20 +3881,20 @@ function toggleAddressFields(enable) {
     document.getElementById("saveClientBtn").disabled = !enable;
 }
 
-// Validación del DNI
+// ValidaciÃ³n del DNI
 async function validateDni() {
     const dni = document.getElementById("newClientDni").value.trim();
     const messageElement = document.getElementById("dniValidationMessage");
 
-    // Validación de longitud mínima
+    // ValidaciÃ³n de longitud mÃ­nima
     if (!dni || dni.length < 6) {
-        messageElement.textContent = "El DNI debe tener al menos 6 dígitos.";
+        messageElement.textContent = "El DNI debe tener al menos 6 dÃ­gitos.";
         togglePersonalFields(false);
         toggleAddressFields(false);
         return;
     }
 
-    // Mostrar spinner durante la validación
+    // Mostrar spinner durante la validaciÃ³n
     showSpinner();
     try {
         const response = await fetch("/api/clientes/validate", {
@@ -3841,8 +3912,8 @@ async function validateDni() {
             toggleAddressFields(false);
         } else {
             messageElement.textContent = "";
-            togglePersonalFields(true); // Habilitar campos personales y código postal
-            toggleAddressFields(false); // Mantener dirección bloqueada hasta seleccionar ciudad
+            togglePersonalFields(true); // Habilitar campos personales y cÃ³digo postal
+            toggleAddressFields(false); // Mantener direcciÃ³n bloqueada hasta seleccionar ciudad
             document.getElementById("newClientName").focus(); // Poner foco en nombre
         }
     } catch (error) {
@@ -3874,7 +3945,7 @@ async function loadPostalCodeData() {
         });
         const data = await response.json();
 
-        if (!response.ok) throw new Error(data.error || "Error al consultar código postal");
+        if (!response.ok) throw new Error(data.error || "Error al consultar cÃ³digo postal");
 
         postalCodeData = data;
         citySelect.innerHTML = '<option value="">Seleccione una ciudad</option>';
@@ -3905,9 +3976,9 @@ function fillAddressFields() {
     selectedCityData = postalCodeData.find(item => item.AddressCity === selectedCity);
 
     if (selectedCityData) {
-        toggleAddressFields(true); // Habilitar campos de dirección
+        toggleAddressFields(true); // Habilitar campos de direcciÃ³n
         document.getElementById("newClientStreet").focus();
-        // Geolocalizar automáticamente si ya hay calle y altura
+        // Geolocalizar automÃ¡ticamente si ya hay calle y altura
         const street = document.getElementById("newClientStreet").value.trim();
         const streetNumber = document.getElementById("newClientStreetNumber").value.trim();
         if (street && streetNumber) {
@@ -3978,9 +4049,9 @@ async function saveNewClient() {
         document.getElementById("geocodeAddressDisplay").textContent = "";
         togglePersonalFields(false);
         toggleAddressFields(false);
-        selectedCityData = null; // Resetear la selección de ciudad
-        postalCodeData = []; // Limpiar datos de códigos postales
-        // Reiniciar el mapa a una posición por defecto
+        selectedCityData = null; // Resetear la selecciÃ³n de ciudad
+        postalCodeData = []; // Limpiar datos de cÃ³digos postales
+        // Reiniciar el mapa a una posiciÃ³n por defecto
         if (map && marker) {
             map.setCenter({ lat: -34.6037, lng: -58.3816 });
             map.setZoom(8);
@@ -4044,7 +4115,7 @@ function initIndexedDB() {
 // Guardar el carrito en IndexedDB
 function saveCartToIndexedDB(userId, cartData, timestamp) {
     if (!db) {
-        console.warn('IndexedDB no está inicializado');
+        console.warn('IndexedDB no estÃ¡ inicializado');
         return Promise.resolve();
     }
 
@@ -4074,7 +4145,7 @@ function saveCartToIndexedDB(userId, cartData, timestamp) {
 // Restaurar el carrito desde IndexedDB
 function loadCartFromIndexedDB(userId) {
     if (!db) {
-        console.warn('IndexedDB no está inicializado');
+        console.warn('IndexedDB no estÃ¡ inicializado');
         return Promise.resolve(null);
     }
 
@@ -4103,14 +4174,14 @@ function loadCartFromIndexedDB(userId) {
 async function getUserId() {
     try {
         const response = await fetch('/api/user_info', {
-            credentials: 'include' // Incluir cookies de sesión
+            credentials: 'include' // Incluir cookies de sesiÃ³n
         });
         if (!response.ok) {
-            throw new Error(`Error al obtener información del usuario: ${response.status}`);
+            throw new Error(`Error al obtener informaciÃ³n del usuario: ${response.status}`);
         }
         const data = await response.json();
         if (!data.email) {
-            console.warn('No se encontró email en la respuesta de /api/user_info:', data);
+            console.warn('No se encontrÃ³ email en la respuesta de /api/user_info:', data);
             return null;
         }
         sessionStorage.setItem('email', data.email);
@@ -4121,7 +4192,7 @@ async function getUserId() {
         if (storedEmail && storedEmail !== 'anonymous') {
             return storedEmail; // Usar email almacenado si existe y no es 'anonymous'
         }
-        return null; // No devolver 'anonymous' para forzar autenticación
+        return null; // No devolver 'anonymous' para forzar autenticaciÃ³n
     }
 }
 
@@ -4130,8 +4201,8 @@ async function syncCartWithBackend(userId, cartData, timestamp) {
     try {
         // Validar y corregir estructura del carrito antes de enviar
         if (!cartData || typeof cartData !== 'object') {
-            console.error('Carrito inválido para sincronización:', cartData);
-            throw new Error('Carrito inválido: no es un objeto');
+            console.error('Carrito invÃ¡lido para sincronizaciÃ³n:', cartData);
+            throw new Error('Carrito invÃ¡lido: no es un objeto');
         }
 
         // Asegurar que 'items' exista y sea un array
@@ -4193,9 +4264,9 @@ function showConflictModal(localCart, localTimestamp, backendCart, backendTimest
                     </div>
                     <div class="modal-body">
                         <p>Se encontraron dos versiones del carrito:</p>
-                        <p><strong>Local</strong> (Última actualización: ${new Date(localTimestamp).toLocaleString('es-AR')}): ${localCart.items.length} ítems, ${localCart.client ? 'con cliente' : 'sin cliente'}, ${localCart.quotation_id || 'sin presupuesto'}</p>
-                        <p><strong>Servidor</strong> (Última actualización: ${new Date(backendTimestamp).toLocaleString('es-AR')}): ${backendCart.items.length} ítems, ${backendCart.client ? 'con cliente' : 'sin cliente'}, ${backendCart.quotation_id || 'sin presupuesto'}</p>
-                        <p>¿Cuál deseas usar?</p>
+                        <p><strong>Local</strong> (Ãšltima actualizaciÃ³n: ${new Date(localTimestamp).toLocaleString('es-AR')}): ${localCart.items.length} Ã­tems, ${localCart.client ? 'con cliente' : 'sin cliente'}, ${localCart.quotation_id || 'sin presupuesto'}</p>
+                        <p><strong>Servidor</strong> (Ãšltima actualizaciÃ³n: ${new Date(backendTimestamp).toLocaleString('es-AR')}): ${backendCart.items.length} Ã­tems, ${backendCart.client ? 'con cliente' : 'sin cliente'}, ${backendCart.quotation_id || 'sin presupuesto'}</p>
+                        <p>Â¿CuÃ¡l deseas usar?</p>
                         <button class="btn btn-primary" id="chooseLocal">Usar carrito local</button>
                         <button class="btn btn-secondary" id="chooseBackend">Usar carrito del servidor</button>
                     </div>
@@ -4230,8 +4301,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const userId = await getUserId();
 
         if (!userId) {
-            console.warn('Usuario no autenticado, inicializando carrito vacío');
-            showToast('warning', 'Por favor, inicia sesión para sincronizar el carrito');
+            console.warn('Usuario no autenticado, inicializando carrito vacÃ­o');
+            showToast('warning', 'Por favor, inicia sesiÃ³n para sincronizar el carrito');
             // Intentar cargar desde IndexedDB como respaldo
             const localData = await loadCartFromIndexedDB('anonymous');
             if (localData && localData.cart) {
@@ -4244,7 +4315,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        // Priorizar siempre la versión del servidor
+        // Priorizar siempre la versiÃ³n del servidor
         const backendData = await loadCartFromBackend(userId);
         if (backendData && backendData.cart) {
             cart = backendData.cart;
@@ -4257,7 +4328,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const timestamp = new Date().toISOString();
                 await syncCartWithBackend(userId, cart, timestamp);
             } else {
-                // Si no hay datos locales, usar carrito vacío
+                // Si no hay datos locales, usar carrito vacÃ­o
                 cart = { items: [], client: null, quotation_id: null, type: 'new', observations: '' };
                 const timestamp = new Date().toISOString();
                 await saveCartToIndexedDB(userId, cart, timestamp);
@@ -4272,7 +4343,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (error) {
         console.error('Error al inicializar el carrito:', error);
         showToast('danger', 'Error al cargar el carrito');
-        // Usar carrito vacío como última opción
+        // Usar carrito vacÃ­o como Ãºltima opciÃ³n
         cart = { items: [], client: null, quotation_id: null, type: 'new', observations: '' };
         cartObservations = '';
         const obsInputFallback = document.getElementById("cartObservations");
@@ -4283,9 +4354,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 /***************************************
  * Archivo: scripts.js
- * Descripción: Gestión de filtros, paginación,
- * visualización de imágenes, carga dinámica de productos
- * y funcionalidad del botón flotante de WhatsApp.
+ * DescripciÃ³n: GestiÃ³n de filtros, paginaciÃ³n,
+ * visualizaciÃ³n de imÃ¡genes, carga dinÃ¡mica de productos
+ * y funcionalidad del botÃ³n flotante de WhatsApp.
  ***************************************/
 document.addEventListener('DOMContentLoaded', () => {
   console.log('DOM fully loaded, initializing components');
@@ -4302,8 +4373,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let touchStartTime = 0;
     let mouseStartTime = 0;
     const TOUCH_THRESHOLD = 200; // Tiempo en ms para distinguir clic de arrastre
-    const MOVE_THRESHOLD = 5; // Umbral de movimiento en píxeles para considerar arrastre
-    const EDGE_MARGIN = 5; // Margen en píxeles desde los bordes del viewport
+    const MOVE_THRESHOLD = 5; // Umbral de movimiento en pÃ­xeles para considerar arrastre
+    const EDGE_MARGIN = 5; // Margen en pÃ­xeles desde los bordes del viewport
 
     // Load saved position from localStorage
     const savedPosition = localStorage.getItem('whatsappBtnPosition');
@@ -4457,7 +4528,7 @@ document.addEventListener('DOMContentLoaded', () => {
       console.log('enviarWhatsApp called');
       const modalElement = document.getElementById('whatsappModal');
       if (!modalElement) {
-        console.error('Error: No se encontró el elemento whatsappModal');
+        console.error('Error: No se encontrÃ³ el elemento whatsappModal');
         showToast('danger', 'No se pudo abrir el formulario de WhatsApp.');
         return;
       }
@@ -4474,18 +4545,18 @@ document.addEventListener('DOMContentLoaded', () => {
       const modal = new bootstrap.Modal(modalElement);
       modal.show();
 
-      // Enfocar el campo de número
+      // Enfocar el campo de nÃºmero
       numberInput.focus();
 
-      // Manejar envío
+      // Manejar envÃ­o
       const submitButton = document.getElementById('whatsappSubmit');
       const handleSubmit = () => {
         const numero = numberInput.value.trim();
         const mensaje = messageInput.value.trim();
 
-        // Validar número
+        // Validar nÃºmero
         if (!numero || !/^\d{6,}$/.test(numero)) {
-          errorElement.textContent = 'Número inválido. Debe tener al menos 6 dígitos y contener solo números.';
+          errorElement.textContent = 'NÃºmero invÃ¡lido. Debe tener al menos 6 dÃ­gitos y contener solo nÃºmeros.';
           errorElement.style.display = 'block';
           numberInput.focus();
           return;
@@ -4501,10 +4572,10 @@ document.addEventListener('DOMContentLoaded', () => {
         submitButton.removeEventListener('click', handleSubmit);
       };
 
-      // Agregar listener para el botón de envío
+      // Agregar listener para el botÃ³n de envÃ­o
       submitButton.addEventListener('click', handleSubmit);
 
-      // Permitir envío con Enter en el campo de número
+      // Permitir envÃ­o con Enter en el campo de nÃºmero
       numberInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
           e.preventDefault();
@@ -4518,7 +4589,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }, { once: true });
     }
 
-    // Verificar si Font Awesome está cargado
+    // Verificar si Font Awesome estÃ¡ cargado
     if (!document.querySelector('i.fa-brands.fa-whatsapp')) {
       console.warn('Font Awesome WhatsApp icon not found, relying on fallback text');
     }
@@ -4526,3 +4597,550 @@ document.addEventListener('DOMContentLoaded', () => {
     console.error('WhatsApp button not found in DOM');
   }
 });
+
+/* === POS: Utilidades de moneda y helpers === */
+function moneyAR(n) {
+  const v = Number(n || 0);
+  try { return v.toLocaleString("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 2 }); }
+  catch { return `$ ${v.toFixed(2)}`; }
+}
+function clamp(v, min, max) { return Math.min(Math.max(Number(v||0), min), max); }
+
+/* Estructura base del carrito si no existiera en tu app */
+window.cart = window.cart || {
+  items: [], client: null, quotation_id: null, type: 'new', observations: '',
+  desc: { porcentaje: 0, monto: 0, motivo: '' },
+  log: { tipo: 'retiro', sucursal: 'Central', fecha: '', direccion: '', costo: 0, obs: '' },
+  pagos: []
+};
+
+/* === POS: CÃ¡lculo de totales === */
+function calcularTotalesPOS() {
+  const items = cart.items || [];
+  let subtotal = 0, impuestos = 0, peso = 0, unidades = 0;
+
+  items.forEach(it => {
+    const precio = Number(it.price || it.precio || it.precio_unit || it.precio_final_con_descuento || 0);
+    const iva = Number(it.iva || it.vat || it.tax || 21);
+    const cant = Number(it.quantity || it.cantidad || 1);
+    const ptotal = precio * cant;
+    subtotal += ptotal;
+    impuestos += ptotal * (iva / 100);
+    peso += Number(it.pesoKg || 0) * cant;
+    unidades += cant;
+  });
+
+  const descPct = Number(cart.desc?.porcentaje || 0);
+  const descMonto = Number(cart.desc?.monto || 0);
+  const descuentos = (subtotal * (descPct / 100)) + descMonto;
+
+  const costoEnvio = Number(cart.log?.costo || 0);
+  const total = Math.max(0, subtotal - descuentos + impuestos + costoEnvio);
+
+  return { subtotal, descuentos, impuestos, costoEnvio, total, peso, unidades };
+}
+
+/* === POS: Render del carrito === */
+function renderCartOffcanvas() {
+  const list = document.getElementById("listCarrito");
+  if (!list) return;
+
+  list.innerHTML = "";
+  const items = cart.items || [];
+
+  if (!items.length) {
+    list.innerHTML = `<div class="list-group-item">No hay productos en el carrito.</div>`;
+  } else {
+    items.forEach((it, idx) => {
+      const id = String(it.id || it.product_id || it.numero_producto || idx);
+      const nombre = it.name || it.nombre || it.nombre_producto || `Item ${id}`;
+      const iva = Number(it.iva || it.tax || 21);
+      const precio = Number(it.price || it.precio || it.precio_unit || it.precio_final_con_descuento || 0);
+      const cantidad = Number(it.quantity || it.cantidad || 1);
+      const multiplo = Number(it.multiplo || 1);
+      const unidad = it.unidad || it.unidad_medida || "Un";
+
+      const row = document.createElement("div");
+      row.className = "list-group-item d-flex justify-content-between align-items-start";
+      row.innerHTML = `
+        <div class="me-2">
+          <div class="fw-medium">${nombre}</div>
+          <div class="small text-secondary">IVA ${iva}% â€¢ ${moneyAR(precio)} â€¢ ${unidad}</div>
+          <div class="d-flex align-items-center gap-2 mt-1">
+            <input type="number" class="form-control form-control-sm" value="${cantidad}" min="0" step="${multiplo}" style="width: 90px">
+            <span class="small">${moneyAR(precio * cantidad)}</span>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button>
+        </div>
+      `;
+      list.appendChild(row);
+
+      const [inputCant, btnDel] = row.querySelectorAll("input,button");
+      inputCant.addEventListener("change", (e) => setCantidadPOS(idx, e.target.value));
+      btnDel.addEventListener("click", () => removeFromCartPOS(idx));
+    });
+  }
+
+  const t = calcularTotalesPOS();
+  document.getElementById("totSubtotal").textContent = moneyAR(t.subtotal);
+  document.getElementById("totDescuentos").textContent = moneyAR(t.descuentos);
+  document.getElementById("totImpuestos").textContent = moneyAR(t.impuestos);
+  document.getElementById("totEnvio").textContent = moneyAR(t.costoEnvio);
+  document.getElementById("totTotal").textContent = moneyAR(t.total);
+  document.getElementById("totPeso").textContent = `${(t.peso || 0).toFixed(2)} kg / ${t.unidades}`;
+
+  // Actualiza flotante existente (index.html)
+  const count = items.reduce((a, b) => a + Number(b.quantity || b.cantidad || 1), 0);
+  document.getElementById("cartItemCount") && (document.getElementById("cartItemCount").textContent = count);
+  document.getElementById("cartTotalFloat") && (document.getElementById("cartTotalFloat").textContent = (t.total || 0).toFixed(2));
+  document.getElementById("cartClientFloat") && (document.getElementById("cartClientFloat").textContent = (cart.client?.name || "Sin cliente"));
+
+  // Simulador
+  document.getElementById("simTotal") && (document.getElementById("simTotal").textContent = moneyAR(t.total));
+  actualizarRestanteSimuladorPOS();
+}
+
+function setCantidadPOS(idx, valor) {
+  const cant = clamp(valor, 0, 9999);
+  cart.items[idx].quantity = cant;
+  renderCartOffcanvas();
+}
+
+function removeFromCartPOS(idx) {
+  cart.items.splice(idx, 1);
+  renderCartOffcanvas();
+}
+
+/* === POS: Descuentos === */
+function aplicarDescuentoPOS() {
+  const p = Number(document.getElementById("descPorcentaje").value || 0);
+  const m = Number(document.getElementById("descMonto").value || 0);
+  cart.desc = { porcentaje: clamp(p, 0, 100), monto: Math.max(0, m), motivo: (document.getElementById("descMotivo").value || "").trim() };
+  renderCartOffcanvas();
+  bootstrap.Modal.getOrCreateInstance("#modalDescuentos").hide();
+}
+
+/* === POS: LogÃ­stica === */
+function aplicarLogisticaPOS() {
+  cart.log = {
+    tipo: document.getElementById("logTipoEntrega").value,
+    sucursal: document.getElementById("logSucursal").value,
+    fecha: document.getElementById("logFecha").value,
+    direccion: (document.getElementById("logDireccion").value || document.getElementById("logDireccionInputMirror")?.value || "").trim(),
+    costo: Number(document.getElementById("logCosto").value || 0),
+    obs: (document.getElementById("logObs").value || "").trim()
+  };
+  renderCartOffcanvas();
+  bootstrap.Modal.getOrCreateInstance("#modalLogistica").hide();
+}
+
+/* === POS: Simulador de pagos (modal) === */
+function tiposPagoOptionsHTML() {
+  return `
+    <option value="efectivo">Efectivo</option>
+    <option value="debito">Tarjeta DÃ©bito</option>
+    <option value="credito">Tarjeta CrÃ©dito</option>
+    <option value="transferencia">Transferencia</option>
+    <option value="cheque">Cheque</option>
+  `;
+}
+function tarjetasCreditoOptionsHTML() {
+  return `
+    <option value="">-- Seleccione --</option>
+    <option value="visa">Visa</option>
+    <option value="master">Mastercard</option>
+    <option value="amex">American Express</option>
+  `;
+}
+function renderSimuladorPagosPOS() {
+  const cont = document.getElementById("contenedorPagos");
+  if (!cont) return;
+  cont.innerHTML = "";
+  (cart.pagos || []).forEach((pago, idx) => {
+    const row = document.createElement("div");
+    row.className = "card border-0 shadow-sm";
+    row.innerHTML = `
+      <div class="card-body row g-2 align-items-end">
+        <div class="col-12 col-md-3">
+          <label class="form-label">Medio</label>
+          <select class="form-select tipo">${tiposPagoOptionsHTML()}</select>
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label">Monto</label>
+          <input type="number" class="form-control monto" min="0" step="0.01" value="${pago.monto||0}">
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label">InterÃ©s %</label>
+          <input type="number" class="form-control interes" min="0" step="0.01" value="${pago.interes||0}">
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label">Cuotas</label>
+          <input type="number" class="form-control cuotas" min="1" step="1" value="${pago.cuotas||1}">
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label">Tarjeta</label>
+          <select class="form-select tarjeta">${tarjetasCreditoOptionsHTML()}</select>
+        </div>
+        <div class="col-12 col-md-1 d-grid">
+          <button class="btn btn-outline-danger rem"><i class="bi bi-trash"></i></button>
+        </div>
+      </div>`;
+    cont.appendChild(row);
+
+    row.querySelector(".tipo").value = pago.tipo || "efectivo";
+    row.querySelector(".tarjeta").value = pago.tarjeta || "";
+
+    row.querySelector(".tipo").addEventListener("change", (e) => { pago.tipo = e.target.value; actualizarRestanteSimuladorPOS(); });
+    row.querySelector(".monto").addEventListener("input", (e) => { pago.monto = Number(e.target.value||0); actualizarRestanteSimuladorPOS(); });
+    row.querySelector(".interes").addEventListener("input", (e) => { pago.interes = Number(e.target.value||0); actualizarRestanteSimuladorPOS(); });
+    row.querySelector(".cuotas").addEventListener("input", (e) => { pago.cuotas = clamp(e.target.value,1,60); actualizarRestanteSimuladorPOS(); });
+    row.querySelector(".tarjeta").addEventListener("change", (e) => { pago.tarjeta = e.target.value; });
+    row.querySelector(".rem").addEventListener("click", () => { cart.pagos.splice(idx,1); renderSimuladorPagosPOS(); });
+  });
+  actualizarRestanteSimuladorPOS();
+}
+function actualizarRestanteSimuladorPOS() {
+  const t = calcularTotalesPOS().total;
+  const pagado = (cart.pagos||[]).reduce((acc,p)=> acc + (Number(p.monto)||0) * (1 + Number(p.interes||0)/100), 0);
+  const rest = Math.max(0, t - pagado);
+  const el = document.getElementById("simRestante");
+  if (el) el.textContent = moneyAR(rest);
+}
+function agregarFilaPagoPOS() { cart.pagos = cart.pagos || []; cart.pagos.push({ tipo:"efectivo", monto:0, cuotas:1, tarjeta:"", interes:0 }); renderSimuladorPagosPOS(); }
+function limpiarPagosPOS() { cart.pagos = []; renderSimuladorPagosPOS(); }
+function confirmarSimulacionPagosPOS() {
+  const t = calcularTotalesPOS().total;
+  const pagado = (cart.pagos||[]).reduce((a,p)=> a + (Number(p.monto)||0) * (1 + Number(p.interes||0)/100), 0);
+  if (pagado + 0.01 < t) {
+    if (!confirm("El total ingresado no cubre el monto a pagar. Â¿Continuar igualmente?")) return;
+  }
+  bootstrap.Modal.getOrCreateInstance("#modalPagos").hide();
+}
+
+/* === POS: Presupuesto e inicio de facturaciÃ³n (front) === */
+function imprimirPresupuestoPOS() {
+  const t = calcularTotalesPOS();
+  const html = `
+  <html><head><meta charset="utf-8"><title>Presupuesto</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial; margin:24px;}
+    h1{margin:0 0 8px 0}.small{color:#666}
+    table{width:100%;border-collapse:collapse;margin-top:16px}
+    th,td{border-bottom:1px solid #ddd;padding:8px;text-align:left}
+    .totales{margin-top:16px;width:100%}
+    .totales td{padding:4px}.right{text-align:right}
+  </style></head><body>
+  <h1>Presupuesto</h1>
+  <div class="small">Cliente: ${cart.client?.name || "Consumidor final"}</div>
+  <div class="small">Fecha: ${new Date().toLocaleString("es-AR")}</div>
+  <table><thead><tr><th>Producto</th><th>Cant</th><th>Precio</th><th>IVA</th><th>Total</th></tr></thead><tbody>
+    ${
+      (cart.items||[]).map(it=>{
+        const precio = Number(it.price || it.precio || it.precio_unit || it.precio_final_con_descuento || 0);
+        const iva = Number(it.iva || it.tax || 21);
+        const unidad = it.unidad || it.unidad_medida || it.unidadMedida || "Un";
+        const cant = Number(it.quantity || it.cantidad || 1);
+        const cantStr = isUnidadM2(unidad) ? Number(cant).toFixed(2) : String(Number(cant).toFixed(0));
+        return `<tr><td>${it.name || it.nombre || it.nombre_producto || "-"}</td><td>${cantStr}</td><td>${moneyAR(precio)}</td><td>${iva}%</td><td>${moneyAR(precio*cant)}</td></tr>`;
+      }).join("")
+    }
+  </tbody></table>
+  <table class="totales">
+    <tr><td>Subtotal</td><td class="right">${moneyAR(t.subtotal)}</td></tr>
+    <tr><td>Descuentos</td><td class="right">-${moneyAR(t.descuentos)}</td></tr>
+    <tr><td>Impuestos</td><td class="right">${moneyAR(t.impuestos)}</td></tr>
+    <tr><td>Costo envÃ­o</td><td class="right">${moneyAR(t.costoEnvio)}</td></tr>
+    <tr><td><strong>Total</strong></td><td class="right"><strong>${moneyAR(t.total)}</strong></td></tr>
+  </table>
+  <p class="small">LogÃ­stica: ${cart.log?.tipo} â€¢ ${cart.log?.sucursal} â€¢ ${cart.log?.direccion || ""}</p>
+  <p class="small">Motivo descuento: ${cart.desc?.motivo || "-"}</p>
+  <script>window.print();</script>
+  </body></html>`;
+  const w = window.open("", "_blank");
+  w.document.open(); w.document.write(html); w.document.close();
+}
+
+function facturarPOS() {
+  if (!(cart.items||[]).length) { alert("El carrito estÃ¡ vacÃ­o."); return; }
+  const payload = {
+    cliente: cart.client,
+    items: (cart.items||[]).map(it => ({
+      id: it.id || it.product_id || it.numero_producto,
+      nombre: it.name || it.nombre || it.nombre_producto,
+      cantidad: it.quantity || it.cantidad || 1,
+      precio_unit: it.price || it.precio || it.precio_unit || it.precio_final_con_descuento || 0,
+      iva: it.iva || it.tax || 21,
+      unidad: it.unidad || it.unidad_medida || "Un"
+    })),
+    descuentos: cart.desc || { porcentaje:0, monto:0, motivo:"" },
+    logistica: cart.log || {},
+    pagos: cart.pagos || [],
+    totales: calcularTotalesPOS(),
+    metadata: { origen: "pos-web", fecha: new Date().toISOString() }
+  };
+  console.log("Payload FacturaciÃ³n POS:", payload); // <-- Conecta aquÃ­ con tu endpoint (fetch)
+  alert("Factura lista para enviar (ver consola).");
+}
+
+/* === POS: Hook de UI y eventos === */
+function toggleCart() {
+  const off = bootstrap.Offcanvas.getOrCreateInstance("#offCarrito");
+  renderCartOffcanvas();
+  off.toggle();
+}
+
+// Botones del carrito y modales
+document.getElementById("btnLimpiarCliente")?.addEventListener("click", () => {
+  cart.client = null;
+  document.getElementById("lblCliente").textContent = "Consumidor final";
+  renderCartOffcanvas();
+});
+document.getElementById("btnAplicarDescuento")?.addEventListener("click", aplicarDescuentoPOS);
+document.getElementById("btnAplicarLogistica")?.addEventListener("click", aplicarLogisticaPOS);
+document.getElementById("btnAgregarPago")?.addEventListener("click", agregarFilaPagoPOS);
+document.getElementById("btnLimpiarPagos")?.addEventListener("click", limpiarPagosPOS);
+document.getElementById("btnConfirmarPagos")?.addEventListener("click", confirmarSimulacionPagosPOS);
+document.getElementById("btnPresupuesto")?.addEventListener("click", imprimirPresupuestoPOS);
+document.getElementById("btnFacturar")?.addEventListener("click", facturarPOS);
+
+// Cuando abras el modal de pagos, asegurar render
+document.getElementById("modalPagos")?.addEventListener("shown.bs.modal", renderSimuladorPagosPOS);
+
+/* === POS: Dirección de logística (selección y edición) === */
+(function initLogisticaDireccion() {
+  const modal = document.getElementById('modalLogistica');
+  if (!modal) return;
+
+  function getClientAddresses() {
+    const c = cart.client || {};
+    let addrs = [];
+    if (Array.isArray(c.addresses)) addrs = c.addresses.slice();
+    else if (Array.isArray(c.direcciones)) addrs = c.direcciones.slice();
+    else if (Array.isArray(c.domicilios)) addrs = c.domicilios.slice();
+    else if (c.direccion_completa) addrs = [c.direccion_completa];
+    else if (c.direccion) addrs = [c.direccion];
+    // Normalizar a strings
+    return addrs.map(a => typeof a === 'string' ? a : (a?.texto || a?.full || a?.direccion || ''))
+                .filter(s => (s||'').trim().length > 0);
+  }
+
+  function ensureUI() {
+    let section = document.getElementById('logisticaDireccionSection');
+    // Si no existe el bloque, crearlo dinámicamente después del input legacy
+    if (!section) {
+      const legacyWrap = document.getElementById('logDireccion')?.parentElement;
+      if (legacyWrap && legacyWrap.parentElement) {
+        section = document.createElement('div');
+        section.className = 'col-12';
+        section.id = 'logisticaDireccionSection';
+        section.style.display = 'none';
+        section.innerHTML = `
+          <label class="form-label" for="logDireccionSelect">Dirección de entrega</label>
+          <div class="row g-2 align-items-center">
+            <div class="col-12 col-md-6">
+              <select id="logDireccionSelect" class="form-select">
+                <option value="">Elegir dirección…</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-6 d-flex gap-2">
+              <input id="logDireccionInputMirror" type="text" class="form-control" placeholder="Calle, número, ciudad, CP">
+              <button type="button" id="btnEditarDireccion" class="btn btn-outline-secondary">Editar</button>
+            </div>
+          </div>
+          <div id="logDireccionEditor" class="mt-3" style="display:none;">
+            <div class="row g-2">
+              <div class="col-12 col-md-6">
+                <label class="form-label">Calle</label>
+                <input type="text" id="dirCalle" class="form-control" placeholder="Calle">
+              </div>
+              <div class="col-6 col-md-2">
+                <label class="form-label">Número</label>
+                <input type="text" id="dirNumero" class="form-control" placeholder="Número">
+              </div>
+              <div class="col-6 col-md-4">
+                <label class="form-label">Ciudad</label>
+                <input type="text" id="dirCiudad" class="form-control" placeholder="Ciudad">
+              </div>
+              <div class="col-6 col-md-4">
+                <label class="form-label">Provincia</label>
+                <input type="text" id="dirProvincia" class="form-control" placeholder="Provincia">
+              </div>
+              <div class="col-6 col-md-2">
+                <label class="form-label">CP</label>
+                <input type="text" id="dirCP" class="form-control" placeholder="CP">
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label">Referencia</label>
+                <input type="text" id="dirReferencia" class="form-control" placeholder="Piso, dpto, referencias">
+              </div>
+            </div>
+            <div class="mt-2 d-flex gap-2">
+              <button type="button" id="btnGuardarDireccionEdit" class="btn btn-primary">Guardar cambios</button>
+              <button type="button" id="btnCancelarDireccionEdit" class="btn btn-outline-secondary">Cancelar</button>
+            </div>
+          </div>`;
+        legacyWrap.parentElement.insertBefore(section, legacyWrap.nextSibling);
+        // Re-conectar handlers que dependen de estos IDs (simplemente volver a adjuntar)
+        document.getElementById('btnEditarDireccion')?.addEventListener('click', function(){
+          const editor = document.getElementById('logDireccionEditor');
+          if (!editor) return;
+          editor.style.display = '';
+          const mirror = document.getElementById('logDireccionInputMirror');
+          const txt = mirror?.value || '';
+          const parts = (txt || '').split(',').map(s => s.trim());
+          document.getElementById('dirCalle').value = parts[0] || '';
+          document.getElementById('dirNumero').value = (parts[1] || '').replace(/[^0-9]/g,'');
+          document.getElementById('dirCiudad').value = parts[2] || '';
+          document.getElementById('dirProvincia').value = parts[3] || '';
+          document.getElementById('dirCP').value = (parts[4] || '').replace(/[^0-9]/g,'');
+          document.getElementById('dirReferencia').value = '';
+        });
+        document.getElementById('btnCancelarDireccionEdit')?.addEventListener('click', function(){
+          const editor = document.getElementById('logDireccionEditor');
+          if (editor) editor.style.display = 'none';
+        });
+        document.getElementById('btnGuardarDireccionEdit')?.addEventListener('click', function(){
+          function val(id){ return (document.getElementById(id)?.value || '').trim(); }
+          const calle = val('dirCalle');
+          const numero = val('dirNumero');
+          const ciudad = val('dirCiudad');
+          const provincia = val('dirProvincia');
+          const cp = val('dirCP');
+          const ref = val('dirReferencia');
+          const parts = [];
+          if (calle) parts.push(calle + (numero? ' ' + numero : ''));
+          if (ciudad) parts.push(ciudad);
+          if (provincia) parts.push(provincia);
+          if (cp) parts.push(cp);
+          const txt = parts.join(', ') + (ref? ` - ${ref}` : '');
+          const mirror = document.getElementById('logDireccionInputMirror');
+          if (mirror) mirror.value = txt;
+          const legacy = document.getElementById('logDireccion');
+          if (legacy) legacy.value = txt;
+          const sel = document.getElementById('logDireccionSelect');
+          if (sel && sel.value !== '') {
+            sel.options[sel.selectedIndex].textContent = txt || '(sin dirección)';
+            if (!cart.client) cart.client = {};
+            if (!Array.isArray(cart.client.addresses)) cart.client.addresses = getClientAddresses();
+            const idx = Number(sel.value);
+            if (!isNaN(idx)) cart.client.addresses[idx] = txt;
+          }
+          const editor = document.getElementById('logDireccionEditor');
+          if (editor) editor.style.display = 'none';
+        });
+        document.getElementById('logDireccionSelect')?.addEventListener('change', function(){
+          const idx = this.value;
+          const addrs = getClientAddresses();
+          const txt = (idx === '' ? '' : (addrs[Number(idx)] || ''));
+          const mirror = document.getElementById('logDireccionInputMirror');
+          if (mirror) mirror.value = txt;
+          const legacy = document.getElementById('logDireccion');
+          if (legacy) legacy.value = txt;
+        });
+      }
+    }
+    const tipo = document.getElementById('logTipoEntrega');
+    if (!tipo) return;
+    const isEnvio = (tipo.value === 'envio');
+    if (section) section.style.display = isEnvio ? '' : 'none';
+    // Mantener input clásico visible solo si no es envío
+    const legacy = document.getElementById('logDireccion');
+    if (legacy) legacy.parentElement.style.display = isEnvio ? 'none' : '';
+    if (!isEnvio) return;
+
+    // Poblar select
+    const sel = document.getElementById('logDireccionSelect');
+    const mirror = document.getElementById('logDireccionInputMirror');
+    if (!sel || !mirror) return;
+    const options = getClientAddresses();
+    sel.innerHTML = '';
+    const opt0 = document.createElement('option'); opt0.value = ''; opt0.textContent = 'Elegir dirección…'; sel.appendChild(opt0);
+    options.forEach((txt, i) => { const o = document.createElement('option'); o.value = String(i); o.textContent = txt; sel.appendChild(o); });
+    // Por defecto, no seleccionar ninguna; forzar elección del usuario
+    mirror.value = '';
+  }
+
+  modal.addEventListener('shown.bs.modal', ensureUI);
+
+  document.getElementById('logTipoEntrega')?.addEventListener('change', ensureUI);
+
+  document.getElementById('logDireccionSelect')?.addEventListener('change', function () {
+    const sel = this;
+    const idx = sel.value;
+    const addrs = getClientAddresses();
+    const txt = (idx === '' ? '' : (addrs[Number(idx)] || ''));
+    const mirror = document.getElementById('logDireccionInputMirror');
+    if (mirror) mirror.value = txt;
+    // Sincronizar con input clásico para compatibilidad
+    const legacy = document.getElementById('logDireccion');
+    if (legacy) legacy.value = txt;
+  });
+
+  // Editor de dirección
+  document.getElementById('btnEditarDireccion')?.addEventListener('click', function(){
+    const editor = document.getElementById('logDireccionEditor');
+    if (!editor) return;
+    editor.style.display = '';
+    const mirror = document.getElementById('logDireccionInputMirror');
+    const txt = mirror?.value || '';
+    // Relleno heurístico básico a partir de comas
+    const parts = (txt || '').split(',').map(s => s.trim());
+    document.getElementById('dirCalle').value = parts[0] || '';
+    document.getElementById('dirNumero').value = (parts[1] || '').replace(/[^0-9]/g,'');
+    document.getElementById('dirCiudad').value = parts[2] || '';
+    document.getElementById('dirProvincia').value = parts[3] || '';
+    document.getElementById('dirCP').value = (parts[4] || '').replace(/[^0-9]/g,'');
+    document.getElementById('dirReferencia').value = '';
+  });
+
+  document.getElementById('btnCancelarDireccionEdit')?.addEventListener('click', function(){
+    const editor = document.getElementById('logDireccionEditor');
+    if (editor) editor.style.display = 'none';
+  });
+
+  document.getElementById('btnGuardarDireccionEdit')?.addEventListener('click', function(){
+    function val(id){ return (document.getElementById(id)?.value || '').trim(); }
+    const calle = val('dirCalle');
+    const numero = val('dirNumero');
+    const ciudad = val('dirCiudad');
+    const provincia = val('dirProvincia');
+    const cp = val('dirCP');
+    const ref = val('dirReferencia');
+    const parts = [];
+    if (calle) parts.push(calle + (numero? ' ' + numero : ''));
+    if (ciudad) parts.push(ciudad);
+    if (provincia) parts.push(provincia);
+    if (cp) parts.push(cp);
+    const txt = parts.join(', ') + (ref? ` - ${ref}` : '');
+
+    const mirror = document.getElementById('logDireccionInputMirror');
+    if (mirror) mirror.value = txt;
+    const legacy = document.getElementById('logDireccion');
+    if (legacy) legacy.value = txt;
+
+    // Actualizar opción seleccionada si corresponde
+    const sel = document.getElementById('logDireccionSelect');
+    if (sel && sel.value !== '') {
+      sel.options[sel.selectedIndex].textContent = txt || '(sin dirección)';
+      // Persistir en el objeto cliente para esta sesión
+      if (!cart.client) cart.client = {};
+      if (!Array.isArray(cart.client.addresses)) cart.client.addresses = getClientAddresses();
+      const idx = Number(sel.value);
+      if (!isNaN(idx)) cart.client.addresses[idx] = txt;
+    }
+
+    const editor = document.getElementById('logDireccionEditor');
+    if (editor) editor.style.display = 'none';
+  });
+})();
+
+// Refresca el nombre del cliente cuando lo elijas desde el modal existente
+document.addEventListener("client-selected", (ev) => {
+  cart.client = ev.detail;
+  document.getElementById("lblCliente").textContent = cart.client?.name || "Consumidor final";
+  renderCartOffcanvas();
+});
+
+

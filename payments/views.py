@@ -202,7 +202,7 @@ def get_simulation(request, pk: int):
 @login_required
 def simulator_page(request):
     total = request.GET.get("total", "0")
-    return render(request, "payments/simulator.html", {"total": total})
+    return render(request, "payments/simulator_v2.html", {"total": total})
 
 
 @login_required

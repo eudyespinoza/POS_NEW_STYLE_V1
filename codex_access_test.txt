@@ -1,0 +1,2 @@
+Codex CLI: verificacion de acceso al shell y edicion.
+Archivo creado automaticamente para comprobar permisos.

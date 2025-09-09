@@ -13,7 +13,7 @@ from django.contrib.auth.decorators import login_required, permission_required
 from django.urls import reverse
 from django import forms
 from django.contrib.auth.decorators import login_required
-from django.contrib.admin.views.decorators import staff_member_required
+ 
 from django.urls import reverse
 from .models import TipoContribuyente
 from .forms import TipoContribuyenteForm
@@ -34,7 +34,6 @@ from services.database import (
     obtener_datos_tienda_por_id,
     obtener_empleados_by_email,
     actualizar_last_store,
-    obtener_contador_pdf,
     save_cart,
     get_cart,
     obtener_token_d365,
@@ -64,25 +63,104 @@ from .scheduler import (
     load_parquet_clientes,
     load_parquet_stock,
     load_parquet_atributos,
+    load_parquet_codigos_postales,
 )
 
 from .models import SecuenciaNumerica
+from django.db import transaction
+from .utils.responses import json_ok, json_error
 
 logger = get_module_logger(__name__)
+
+
+def _resumen_pagos(pagos: list | None, max_len: int = 240) -> str:
+    """Genera un resumen compacto de pagos para incluir en observaciones.
+
+    Formato ejemplo: "Pagos: efectivo $10.000; crédito Visa 3 cuotas int 5% $25.000 (Ref: 1234) | Total c/int.: $35.000".
+    Se trunca a `max_len` caracteres para evitar exceder límites de campos.
+    """
+    try:
+        pagos = pagos or []
+        if not isinstance(pagos, list) or not pagos:
+            return ""
+        partes = []
+        total_con_int = 0.0
+        for p in pagos:
+            if not isinstance(p, dict):
+                continue
+            medio = str(p.get("tipo") or "")
+            tarjeta = str(p.get("tarjeta") or "").strip()
+            cuotas = p.get("cuotas")
+            interes = p.get("interes")
+            ref = str(p.get("referencia") or "").strip()
+            monto = float(p.get("monto") or 0)
+            monto_final = monto * (1 + float(interes or 0) / 100.0)
+            total_con_int += monto_final
+            desc = medio
+            if tarjeta:
+                desc += f" {tarjeta}"
+            if cuotas:
+                desc += f" {int(cuotas)} cuotas"
+            if interes:
+                try:
+                    if float(interes) != 0:
+                        desc += f" int {float(interes):g}%"
+                except Exception:
+                    pass
+            desc += f" ${monto_final:,.2f}"
+            if ref:
+                desc += f" (Ref: {ref})"
+            # normaliza separadores decimales a coma
+            desc = desc.replace(",", ".").replace(".", ",", 1)
+            partes.append(desc)
+        resumen = f"Pagos: {'; '.join(partes)} | Total c/int.: ${total_con_int:,.2f}"
+        if len(resumen) > max_len:
+            resumen = resumen[: max(0, max_len - 3)] + "..."
+        return resumen
+    except Exception:
+        return ""
 
 
 class SecuenciaNumericaForm(forms.ModelForm):
     class Meta:
         model = SecuenciaNumerica
         fields = ["nombre", "prefijo", "valor_actual", "incremento"]
+        widgets = {
+            "nombre": forms.TextInput(attrs={"class": "form-control", "placeholder": "presupuesto"}),
+            "prefijo": forms.TextInput(attrs={"class": "form-control", "placeholder": "P-"}),
+            "valor_actual": forms.NumberInput(attrs={"class": "form-control", "min": 0}),
+            "incremento": forms.NumberInput(attrs={"class": "form-control", "min": 1}),
+        }
+
+
+def next_sequence_code(nombre: str, default_prefix: str = "P-", pad: int = 9) -> str:
+    """Obtiene el siguiente valor de la secuencia + prefijo, con padding.
+
+    - Usa la tabla Django `SecuenciaNumerica` con `select_for_update` para evitar condiciones de carrera.
+    - Si la secuencia no existe, la crea con valores por defecto.
+    """
+    with transaction.atomic():
+        seq, _created = (
+            SecuenciaNumerica.objects.select_for_update().get_or_create(
+                nombre=nombre,
+                defaults={"prefijo": default_prefix, "valor_actual": 0, "incremento": 1},
+            )
+        )
+        seq.valor_actual = (seq.valor_actual or 0) + (seq.incremento or 1)
+        seq.save(update_fields=["valor_actual"])
+        numero = str(seq.valor_actual).zfill(max(1, int(pad or 1)))
+        codigo = f"{seq.prefijo or ''}{numero}"
+        return codigo
 # ======== Config: Tipos de contribuyente ========
-@staff_member_required
+from .decorators import staff_only_notice
+
+@staff_only_notice
 def tipos_contribuyente_list(request):
     tipos = TipoContribuyente.objects.all()
     return render(request, 'config/tipos_contribuyente/list.html', {'tipos': tipos})
 
 
-@staff_member_required
+@staff_only_notice
 def tipos_contribuyente_create(request):
     if request.method == 'POST':
         form = TipoContribuyenteForm(request.POST)
@@ -94,7 +172,7 @@ def tipos_contribuyente_create(request):
     return render(request, 'config/tipos_contribuyente/form.html', {'form': form})
 
 
-@staff_member_required
+@staff_only_notice
 def tipos_contribuyente_update(request, pk):
     tipo = get_object_or_404(TipoContribuyente, pk=pk)
     if request.method == 'POST':
@@ -107,7 +185,7 @@ def tipos_contribuyente_update(request, pk):
     return render(request, 'config/tipos_contribuyente/form.html', {'form': form, 'tipo': tipo})
 
 
-@staff_member_required
+@staff_only_notice
 def tipos_contribuyente_delete(request, pk):
     tipo = get_object_or_404(TipoContribuyente, pk=pk)
     if request.method == 'POST':
@@ -135,8 +213,8 @@ def root(request):
     request.session.set_expiry(60 * 60 * 4)  # 4 horas
     last_store = request.session.get('last_store')
     if last_store:
-        return redirect(reverse('core:productos') + f'?store={last_store}')
-    return redirect('core:productos')
+        return redirect('core:pos_retail')
+    return redirect('core:pos_retail')
 
 # ======== Página principal (index) ========
 @login_required
@@ -385,8 +463,8 @@ def api_user_info(request):
 @login_required
 def api_generate_pdf_quotation_id(request):
     try:
-        contador = obtener_contador_pdf()
-        qid = f"P-{str(contador).zfill(9)}"
+        # Secuencia dedicada a presupuestos usando el módulo de secuencias numéricas
+        qid = next_sequence_code(nombre="presupuesto", default_prefix="P-", pad=9)
         return JsonResponse({"quotation_id": qid})
     except Exception as e:
         logger.exception("api_generate_pdf_quotation_id")
@@ -407,7 +485,8 @@ def api_facturar(request):
             return JsonResponse({"error": "El carrito está vacío"}, status=400)
         total = float(data.get("total") or 0)
         cliente = data.get("client")
-        factura = generar_factura(cliente, items, total)
+        pagos = data.get("pagos") or []
+        factura = generar_factura(cliente, items, total, pagos)
         return JsonResponse({"factura": factura})
     except Exception as e:
         logger.exception("api_facturar")
@@ -501,10 +580,25 @@ def api_direcciones_codigo_postal(request):
         cp = data.get('codigo_postal')
         if not cp:
             return JsonResponse({"error": "Código postal es requerido"}, status=400)
+        # Intentar responder desde el padrón local (Parquet)
+        try:
+            table = load_parquet_codigos_postales()
+        except Exception:
+            table = None
+        if table is not None:
+            try:
+                filtered = table.filter(pc.equal(pc.field('AddressZipCode'), str(cp)))
+                df = filtered.to_pandas()
+                registros = df.to_dict('records')
+                if registros:
+                    return JsonResponse(registros, safe=False)
+            except Exception:
+                pass
+        # Fallback en vivo a Fabric
         datos, error = run_obtener_datos_codigo_postal(cp)
         if error:
             return JsonResponse({"error": error}, status=500)
-        return JsonResponse(datos)
+        return JsonResponse(datos, safe=False)
     except Exception as e:
         logger.exception("api_direcciones_codigo_postal")
         return JsonResponse({"error": str(e)}, status=500)
@@ -520,6 +614,14 @@ def api_create_quotation(request):
         store_id = body.get('store_id', '')
         tipo_presupuesto = body.get('tipo_presupuesto', 'Caja')
         observaciones = cart.get('observations', '')
+        # Anexar resumen de pagos si existe
+        try:
+            pagos = cart.get('pagos') or []
+            resumen = _resumen_pagos(pagos)
+            if resumen:
+                observaciones = (observaciones + (" | " if observaciones else "") + resumen)[:240]
+        except Exception:
+            pass
 
         if not request.session.get('empleado_d365'):
             return JsonResponse({"error": "Inicia sesión nuevamente (ID empleado faltante)"}, status=401)
@@ -591,6 +693,13 @@ def api_update_quotation(request, quotation_id: str):
         store_id = body.get('store_id', '')
         tipo_presupuesto = body.get('tipo_presupuesto', 'Caja')
         observaciones = cart.get('observations', '')
+        try:
+            pagos = cart.get('pagos') or []
+            resumen = _resumen_pagos(pagos)
+            if resumen:
+                observaciones = (observaciones + (" | " if observaciones else "") + resumen)[:240]
+        except Exception:
+            pass
 
         if not request.session.get('empleado_d365'):
             return JsonResponse({"error": "Inicia sesión nuevamente (ID empleado faltante)"}, status=401)
@@ -1047,3 +1156,598 @@ def modo_entrega_delete(request, pk):
         "config/modos_entrega/confirm_delete.html",
         {"modo": modo},
     )
+@login_required
+def pos_retail(request):
+    """Interfaz POS (nuevo estilo) usando APIs reales + funciones equivalentes."""
+    try:
+        stores = obtener_stores_from_parquet() or []
+    except Exception:
+        stores = []
+    last_store = request.session.get('last_store', 'BA001GC')
+    return render(request, 'pos_retail.html', {"stores": stores, "last_store": last_store})
+# ======== API Simulador pagos (V5-like) ========
+@require_GET
+@login_required
+def api_sim_masters(request):
+    try:
+        from . import simulador as sim
+        return JsonResponse(sim.masters(), safe=False)
+    except Exception as e:
+        logger.exception("api_sim_masters")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@require_GET
+@login_required
+def api_sim_plans(request):
+    try:
+        from . import simulador as sim
+        method = request.GET.get('method')
+        brand = request.GET.get('brand')
+        bank = request.GET.get('bank')
+        acq = request.GET.get('acquirer')
+        tasa1 = request.GET.get('tasa1') in {'1','true','True'}
+        data = sim.plans(method, brand, bank, acq, tasa1)
+        return JsonResponse(data, safe=False)
+    except Exception as e:
+        logger.exception("api_sim_plans")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@require_GET
+@login_required
+def api_sim_discounts(request):
+    try:
+        from . import simulador as sim
+        method = request.GET.get('method')
+        brand = request.GET.get('brand')
+        bank = request.GET.get('bank')
+        data = sim.discounts(method, brand, bank)
+        return JsonResponse(data, safe=False)
+    except Exception as e:
+        logger.exception("api_sim_discounts")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+@require_POST
+@login_required
+def api_simulate(request):
+    try:
+        from . import simulador as sim
+        payload = json.loads(request.body.decode('utf-8'))
+        cart_amount = float(payload.get('cart_amount') or 0)
+        lines = payload.get('lines') or []
+        tasa1 = bool(payload.get('tasa1') or False)
+        data = sim.simulate(cart_amount, lines, tasa1=tasa1)
+        return JsonResponse(data, safe=False)
+    except Exception as e:
+        logger.exception("api_simulate")
+        return JsonResponse({"error": str(e)}, status=500)
+# ======== UI: Simulador V5 (embed) ========
+@require_GET
+@login_required
+def simulador_v5_ui(request):
+    try:
+        return render(request, 'maestros_pagos/simulator/index_embed.html')
+    except Exception as e:
+        logger.exception("simulador_v5_ui")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+# ======== Configuración: Bancos (minimal CRUD) ========
+@require_GET
+@login_required
+def config_bancos_list(request):
+    try:
+        from . import simulador as sim
+        bancos = sim.bancos_list()
+        return render(request, 'config/pagos/bancos_list.html', { 'bancos': bancos })
+    except Exception as e:
+        logger.exception("config_bancos_list")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@require_GET
+@login_required
+def config_bancos_export(request):
+    from . import simulador as sim
+    bancos = sim.bancos_list()
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["id","code","name","commercial","enabled"])
+    for b in bancos:
+        writer.writerow([b.get('id'), b.get('code'), b.get('name'), b.get('commercial'), int(bool(b.get('enabled')))])
+    resp = HttpResponse(output.getvalue(), content_type='text/csv')
+    resp['Content-Disposition'] = 'attachment; filename=bancos.csv'
+    return resp
+
+
+@login_required
+def config_bancos_import(request):
+    from . import simulador as sim
+    if request.method == 'POST' and request.FILES.get('file'):
+        f = request.FILES['file']
+        data = f.read().decode('utf-8', errors='ignore')
+        reader = csv.DictReader(StringIO(data))
+        for row in reader:
+            code = row.get('code','')
+            name = row.get('name','')
+            commercial = row.get('commercial','')
+            enabled = str(row.get('enabled','1')) in {'1','true','True','TRUE'}
+            # Si id presente, actualiza; si no, crea
+            pk = row.get('id')
+            try:
+                if pk:
+                    sim.banco_update(pk, code, name, commercial, enabled)
+                else:
+                    sim.banco_create(code, name, commercial, enabled)
+            except Exception:
+                logger.exception('config_bancos_import row failed')
+        return redirect('core:config_bancos_list')
+    return render(request, 'config/pagos/import_form.html', { 'title': 'Importar Bancos', 'action': reverse('core:config_bancos_import') })
+
+
+@login_required
+def config_banco_form(request, pk=None):
+    from . import simulador as sim
+    if request.method == 'POST':
+        code = request.POST.get('code') or ''
+        name = request.POST.get('name') or ''
+        commercial = request.POST.get('commercial') or ''
+        enabled = (request.POST.get('enabled') == 'on')
+        try:
+            if pk:
+                sim.banco_update(pk, code, name, commercial, enabled)
+            else:
+                sim.banco_create(code, name, commercial, enabled)
+            return redirect('core:config_bancos_list')
+        except Exception as e:
+            logger.exception("config_banco_form")
+            return render(request, 'config/pagos/banco_form.html', { 'error': str(e), 'banco': { 'id': pk, 'code': code, 'name': name, 'commercial': commercial, 'enabled': enabled } })
+    else:
+        banco = None
+        if pk:
+            banco = sim.banco_get(pk)
+        return render(request, 'config/pagos/banco_form.html', { 'banco': banco })
+
+
+@login_required
+def config_banco_toggle(request, pk):
+    from . import simulador as sim
+    try:
+        sim.banco_toggle(pk)
+    except Exception:
+        logger.exception("config_banco_toggle")
+    return redirect('core:config_bancos_list')
+
+
+@login_required
+def config_banco_delete(request, pk):
+    from . import simulador as sim
+    try:
+        if request.method == 'POST':
+            sim.banco_delete(pk)
+            return redirect('core:config_bancos_list')
+        banco = sim.banco_get(pk)
+        return render(request, 'config/pagos/banco_delete.html', { 'banco': banco })
+    except Exception as e:
+        logger.exception("config_banco_delete")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+# Métodos de pago
+@require_GET
+@login_required
+def config_metodos_list(request):
+    try:
+        from . import simulador as sim
+        metodos = sim.methods_list()
+        return render(request, 'config/pagos/metodos_list.html', { 'metodos': metodos })
+    except Exception as e:
+        logger.exception("config_metodos_list")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@require_GET
+@login_required
+def config_metodos_export(request):
+    from . import simulador as sim
+    items = sim.methods_list()
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["id","code","name","function","enabled"])
+    for m in items:
+        writer.writerow([m.get('id'), m.get('code'), m.get('name'), m.get('function'), int(bool(m.get('enabled')))])
+    resp = HttpResponse(output.getvalue(), content_type='text/csv')
+    resp['Content-Disposition'] = 'attachment; filename=metodos.csv'
+    return resp
+
+
+@login_required
+def config_metodos_import(request):
+    from . import simulador as sim
+    if request.method == 'POST' and request.FILES.get('file'):
+        f = request.FILES['file']
+        data = f.read().decode('utf-8', errors='ignore')
+        reader = csv.DictReader(StringIO(data))
+        for row in reader:
+            code = row.get('code','')
+            name = row.get('name','')
+            function = row.get('function','')
+            enabled = str(row.get('enabled','1')) in {'1','true','True','TRUE'}
+            pk = row.get('id')
+            try:
+                if pk:
+                    sim.method_update(pk, code, name, function, enabled)
+                else:
+                    sim.method_create(code, name, function, enabled)
+            except Exception:
+                logger.exception('config_metodos_import row failed')
+        return redirect('core:config_metodos_list')
+    return render(request, 'config/pagos/import_form.html', { 'title': 'Importar Métodos de pago', 'action': reverse('core:config_metodos_import') })
+
+
+@login_required
+def config_metodo_form(request, pk=None):
+    from . import simulador as sim
+    if request.method == 'POST':
+        code = request.POST.get('code') or ''
+        name = request.POST.get('name') or ''
+        function = request.POST.get('function') or ''
+        enabled = (request.POST.get('enabled') == 'on')
+        try:
+            if pk:
+                sim.method_update(pk, code, name, function, enabled)
+            else:
+                sim.method_create(code, name, function, enabled)
+            return redirect('core:config_metodos_list')
+        except Exception as e:
+            logger.exception("config_metodo_form")
+            return render(request, 'config/pagos/metodo_form.html', { 'error': str(e), 'metodo': { 'id': pk, 'code': code, 'name': name, 'function': function, 'enabled': enabled } })
+    else:
+        metodo = None
+        if pk:
+            metodo = sim.method_get(pk)
+        return render(request, 'config/pagos/metodo_form.html', { 'metodo': metodo })
+
+
+@login_required
+def config_metodo_toggle(request, pk):
+    from . import simulador as sim
+    try:
+        sim.method_toggle(pk)
+    except Exception:
+        logger.exception("config_metodo_toggle")
+    return redirect('core:config_metodos_list')
+
+
+@login_required
+def config_metodo_delete(request, pk):
+    from . import simulador as sim
+    try:
+        if request.method == 'POST':
+            sim.method_delete(pk)
+            return redirect('core:config_metodos_list')
+        metodo = sim.method_get(pk)
+        return render(request, 'config/pagos/metodo_delete.html', { 'metodo': metodo })
+    except Exception as e:
+        logger.exception("config_metodo_delete")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+# Adquirentes
+@require_GET
+@login_required
+def config_acquirers_list(request):
+    try:
+        from . import simulador as sim
+        acqs = sim.acquirers_list()
+        return render(request, 'config/pagos/acquirers_list.html', { 'acquirers': acqs })
+    except Exception as e:
+        logger.exception("config_acquirers_list")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+# Tarjetas
+@require_GET
+@login_required
+def config_cards_list(request):
+    try:
+        from . import simulador as sim
+        cards = sim.cards_list()
+        bancos = { b['id']: b for b in sim.bancos_list() }
+        acqs = { a['id']: a for a in sim.acquirers_list() }
+        # Enriquecer por si faltan nombres
+        for c in cards:
+            if not c.get('bank_name') and c.get('bank_id') in bancos:
+                c['bank_name'] = bancos[c['bank_id']].get('name')
+            if not c.get('acquirer_name') and c.get('acquirer_id') in acqs:
+                c['acquirer_name'] = acqs[c['acquirer_id']].get('name')
+        return render(request, 'config/pagos/tarjetas_list.html', { 'cards': cards })
+    except Exception as e:
+        logger.exception("config_cards_list")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def config_card_form(request, pk=None):
+    from . import simulador as sim
+    bancos = sim.bancos_list()
+    acqs = sim.acquirers_list()
+    if request.method == 'POST':
+        brand = request.POST.get('brand') or ''
+        code = request.POST.get('card_code') or ''
+        bank_id = request.POST.get('bank_id') or None
+        acquirer_id = request.POST.get('acquirer_id') or None
+        enabled = (request.POST.get('enabled') == 'on')
+        try:
+            if pk:
+                sim.card_update(pk, brand, code, bank_id, acquirer_id, enabled)
+            else:
+                sim.card_create(brand, code, bank_id, acquirer_id, enabled)
+            return redirect('core:config_cards_list')
+        except Exception as e:
+            logger.exception("config_card_form")
+            card = { 'id': pk, 'brand': brand, 'card_code': code, 'bank_id': bank_id, 'acquirer_id': acquirer_id, 'enabled': enabled }
+            return render(request, 'config/pagos/tarjeta_form.html', { 'error': str(e), 'card': card, 'bancos': bancos, 'acqs': acqs })
+    else:
+        card = None
+        if pk:
+            card = sim.card_get(pk)
+        return render(request, 'config/pagos/tarjeta_form.html', { 'card': card, 'bancos': bancos, 'acqs': acqs })
+
+
+@login_required
+def config_card_toggle(request, pk):
+    from . import simulador as sim
+    try:
+        sim.card_toggle(pk)
+    except Exception:
+        logger.exception("config_card_toggle")
+    return redirect('core:config_cards_list')
+
+
+@login_required
+def config_card_delete(request, pk):
+    from . import simulador as sim
+    try:
+        if request.method == 'POST':
+            sim.card_delete(pk)
+            return redirect('core:config_cards_list')
+        card = sim.card_get(pk)
+        return render(request, 'config/pagos/tarjeta_delete.html', { 'card': card })
+    except Exception as e:
+        logger.exception("config_card_delete")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+# Descuentos
+@require_GET
+@login_required
+def config_discounts_list(request):
+    try:
+        from . import simulador as sim
+        items = sim.discounts_admin_list()
+        return render(request, 'config/pagos/descuentos_list.html', { 'items': items })
+    except Exception as e:
+        logger.exception("config_discounts_list")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def config_discount_form(request, pk=None):
+    from . import simulador as sim
+    metodos = sim.methods_list()
+    cards = sim.cards_list()
+    if request.method == 'POST':
+        method_id = request.POST.get('method_id') or ''
+        card_id = request.POST.get('card_id') or None
+        pct = float(request.POST.get('pct') or 0)
+        vf = request.POST.get('valid_from') or None
+        vt = request.POST.get('valid_to') or None
+        enabled = (request.POST.get('enabled') == 'on')
+        try:
+            if pk:
+                sim.discount_update(pk, method_id, card_id, pct, vf, vt, enabled)
+            else:
+                sim.discount_create(method_id, card_id, pct, vf, vt, enabled)
+            return redirect('core:config_discounts_list')
+        except Exception as e:
+            logger.exception("config_discount_form")
+            item = { 'id': pk, 'method_id': method_id, 'card_id': card_id, 'pct': pct, 'valid_from': vf, 'valid_to': vt, 'enabled': enabled }
+            return render(request, 'config/pagos/descuento_form.html', { 'error': str(e), 'item': item, 'metodos': metodos, 'cards': cards })
+    else:
+        item = None
+        if pk:
+            item = sim.discount_get(pk)
+        return render(request, 'config/pagos/descuento_form.html', { 'item': item, 'metodos': metodos, 'cards': cards })
+
+
+@login_required
+def config_discount_toggle(request, pk):
+    from . import simulador as sim
+    try:
+        sim.discount_toggle(pk)
+    except Exception:
+        logger.exception("config_discount_toggle")
+    return redirect('core:config_discounts_list')
+
+
+@login_required
+def config_discount_delete(request, pk):
+    from . import simulador as sim
+    try:
+        if request.method == 'POST':
+            sim.discount_delete(pk)
+            return redirect('core:config_discounts_list')
+        item = sim.discount_get(pk)
+        return render(request, 'config/pagos/descuento_delete.html', { 'item': item })
+    except Exception as e:
+        logger.exception("config_discount_delete")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+# Planes
+@require_GET
+@login_required
+def config_plans_list(request):
+    try:
+        from . import simulador as sim
+        items = sim.plans_headers_list_admin()
+        return render(request, 'config/pagos/planes_list.html', { 'items': items })
+    except Exception as e:
+        logger.exception("config_plans_list")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def config_plan_form(request, pk=None):
+    from . import simulador as sim
+    metodos = sim.methods_list()
+    if request.method == 'POST':
+        code = request.POST.get('code') or ''
+        name = request.POST.get('name') or ''
+        method_id = request.POST.get('method_id') or None
+        vd = request.POST.get('valid_from') or None
+        vh = request.POST.get('valid_to') or None
+        enabled = (request.POST.get('enabled') == 'on')
+        try:
+            if pk:
+                sim.plan_header_update(pk, code, name, method_id, vd, vh, enabled)
+            else:
+                sim.plan_header_create(code, name, method_id, vd, vh, enabled)
+            return redirect('core:config_plans_list')
+        except Exception as e:
+            logger.exception("config_plan_form")
+            item = { 'id': pk, 'code': code, 'name': name, 'method_id': method_id, 'VigenciaDesde': vd, 'VigenciaHasta': vh, 'enabled': enabled }
+            return render(request, 'config/pagos/plan_form.html', { 'error': str(e), 'item': item, 'metodos': metodos })
+    else:
+        item = None
+        if pk:
+            item = ''.join([]) or None
+            item = sim.plan_header_get(pk)
+        return render(request, 'config/pagos/plan_form.html', { 'item': item, 'metodos': metodos })
+
+
+@login_required
+def config_plan_toggle(request, pk):
+    from . import simulador as sim
+    try:
+        sim.plan_header_toggle(pk)
+    except Exception:
+        logger.exception("config_plan_toggle")
+    return redirect('core:config_plans_list')
+
+
+@login_required
+def config_plan_delete(request, pk):
+    from . import simulador as sim
+    try:
+        if request.method == 'POST':
+            sim.plan_header_delete(pk)
+            return redirect('core:config_plans_list')
+        item = sim.plan_header_get(pk)
+        return render(request, 'config/pagos/plan_delete.html', { 'item': item })
+    except Exception as e:
+        logger.exception("config_plan_delete")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@require_GET
+@login_required
+def config_plan_rates(request, plan_id):
+    try:
+        from . import simulador as sim
+        header = sim.plan_header_get(plan_id)
+        rates = sim.plan_rates_list(plan_id)
+        return render(request, 'config/pagos/plan_rates.html', { 'header': header, 'rates': rates })
+    except Exception as e:
+        logger.exception("config_plan_rates")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def config_plan_rate_form(request, plan_id, rate_id=None):
+    from . import simulador as sim
+    if request.method == 'POST':
+        fees = int(request.POST.get('fees') or 1)
+        coef = float(request.POST.get('coef') or 1)
+        try:
+            if rate_id:
+                sim.plan_rate_update(rate_id, fees, coef)
+            else:
+                sim.plan_rate_create(plan_id, fees, coef)
+            return redirect('core:config_plan_rates', plan_id=plan_id)
+        except Exception as e:
+            logger.exception("config_plan_rate_form")
+            item = { 'id': rate_id, 'fees': fees, 'coef': coef }
+            return render(request, 'config/pagos/plan_rate_form.html', { 'error': str(e), 'item': item, 'plan_id': plan_id })
+    else:
+        item = None
+        if rate_id:
+            item = sim.plan_rate_get(rate_id)
+        return render(request, 'config/pagos/plan_rate_form.html', { 'item': item, 'plan_id': plan_id })
+
+
+@login_required
+def config_plan_rate_delete(request, plan_id, rate_id):
+    from . import simulador as sim
+    try:
+        if request.method == 'POST':
+            sim.plan_rate_delete(rate_id)
+            return redirect('core:config_plan_rates', plan_id=plan_id)
+        item = sim.plan_rate_get(rate_id)
+        return render(request, 'config/pagos/plan_rate_delete.html', { 'item': item, 'plan_id': plan_id })
+    except Exception as e:
+        logger.exception("config_plan_rate_delete")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def config_acquirer_form(request, pk=None):
+    from . import simulador as sim
+    if request.method == 'POST':
+        code = request.POST.get('code') or ''
+        name = request.POST.get('name') or ''
+        enabled = (request.POST.get('enabled') == 'on')
+        try:
+            if pk:
+                sim.acquirer_update(pk, code, name, enabled)
+            else:
+                sim.acquirer_create(code, name, enabled)
+            return redirect('core:config_acquirers_list')
+        except Exception as e:
+            logger.exception("config_acquirer_form")
+            return render(request, 'config/pagos/acquirer_form.html', { 'error': str(e), 'acq': { 'id': pk, 'code': code, 'name': name, 'enabled': enabled } })
+    else:
+        acq = None
+        if pk:
+            acq = sim.acquirer_get(pk)
+        return render(request, 'config/pagos/acquirer_form.html', { 'acq': acq })
+
+
+@login_required
+def config_acquirer_toggle(request, pk):
+    from . import simulador as sim
+    try:
+        sim.acquirer_toggle(pk)
+    except Exception:
+        logger.exception("config_acquirer_toggle")
+    return redirect('core:config_acquirers_list')
+
+
+@login_required
+def config_acquirer_delete(request, pk):
+    from . import simulador as sim
+    try:
+        if request.method == 'POST':
+            sim.acquirer_delete(pk)
+            return redirect('core:config_acquirers_list')
+        acq = sim.acquirer_get(pk)
+        return render(request, 'config/pagos/acquirer_delete.html', { 'acq': acq })
+    except Exception as e:
+        logger.exception("config_acquirer_delete")
+        return JsonResponse({"error": str(e)}, status=500)
+import csv
+from io import StringIO

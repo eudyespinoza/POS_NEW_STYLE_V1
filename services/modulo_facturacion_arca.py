@@ -6,7 +6,7 @@ from services.logging_utils import get_module_logger
 
 logger = get_module_logger(__name__)
 
-OPENSSL_BIN = os.getenv("OPENSSL_PATH") or shutil.which("openssl")
+OPENSSL_BIN = "C:\\Program Files\\OpenSSL-Win64\\bin"
 if not OPENSSL_BIN:
     raise RuntimeError(
         "No se encontró el ejecutable de OpenSSL. Configure OPENSSL_PATH o añádalo al PATH."
@@ -18,7 +18,7 @@ def ejecutar_openssl(*args: str) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, capture_output=True, text=True, check=True)
 
 
-def generar_factura(cliente: dict | None, items: list[dict], total: float) -> dict:
+def generar_factura(cliente: dict | None, items: list[dict], total: float, pagos: list[dict] | None = None) -> dict:
     """Genera una factura electrónica usando el módulo ARCA.
 
     Esta implementación es un *stub* que simula la integración con el
@@ -42,8 +42,16 @@ def generar_factura(cliente: dict | None, items: list[dict], total: float) -> di
         total,
     )
 
+    # Log de pagos (si llegan)
+    try:
+        if pagos:
+            logger.info("Detalle de pagos: %s", pagos)
+    except Exception:
+        pass
+
     return {
         "numero": numero,
         "cae": "00000000000000",
         "vencimiento": datetime.now().strftime("%Y-%m-%d"),
+        "pagos": pagos or [],
     }

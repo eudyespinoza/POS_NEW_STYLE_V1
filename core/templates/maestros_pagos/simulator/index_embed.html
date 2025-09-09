@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Simulador de Pagos</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="p-3">
+
+<h1 class="h4 mb-3">Simulador de Pagos</h1>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-6 d-flex align-items-end gap-3 flex-wrap">
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" id="onlyCards">
+      <label class="form-check-label" for="onlyCards">Solo tarjetas</label>
+    </div>
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" id="tasa1">
+      <label class="form-check-label" for="tasa1">Tasa 1</label>
+    </div>
+    <span class="badge bg-secondary">Importe: $ <span id="cartAmountLabel">0,00</span></span>
+  </div>
+  <div class="col-md-6 d-flex align-items-end justify-content-end gap-3">
+    <div class="form-check">
+      <label class="form-check-label">Distribución:&nbsp;</label>
+      <div class="form-check form-check-inline">
+        <input class="form-check-input" type="radio" name="distMode" id="distMonto" value="monto" checked>
+        <label class="form-check-label" for="distMonto">Monto</label>
+      </div>
+      <div class="form-check form-check-inline">
+        <input class="form-check-input" type="radio" name="distMode" id="distPct" value="pct">
+        <label class="form-check-label" for="distPct">%</label>
+      </div>
+    </div>
+    <button id="simulateBtn" class="btn btn-primary">Simular</button>
+  </div>
+</div>
+
+<h5>Líneas de pago</h5>
+<table class="table table-sm" id="linesTable">
+  <thead>
+    <tr>
+      <th>Importe</th>
+      <th>Método</th>
+      <th>Marca</th>
+      <th>Banco</th>
+      <th>Adquiriente</th>
+      <th>Plan</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody id="linesBody"></tbody>
+  <tfoot>
+    <tr><td colspan="7"><button id="addLine" class="btn btn-outline-secondary btn-sm">Agregar línea</button></td></tr>
+  </tfoot>
+</table>
+
+<hr>
+<h5>Resumen</h5>
+<div class="row g-3">
+  <div class="col-md-2">
+    <div class="form-text">Subtotal líneas</div>
+    <div id="sumLines" class="fs-5">0,00</div>
+  </div>
+  <div class="col-md-2">
+    <div class="form-text">Descuentos</div>
+    <div id="discounts" class="fs-5">0,00</div>
+  </div>
+  <div class="col-md-2">
+    <div class="form-text">Base imponible</div>
+    <div id="base" class="fs-5">0,00</div>
+  </div>
+  <div class="col-md-2">
+    <div class="form-text">IVA</div>
+    <div id="vat" class="fs-5">0,00</div>
+  </div>
+  <div class="col-md-2">
+    <div class="form-text">Intereses</div>
+    <div id="interests" class="fs-5">0,00</div>
+  </div>
+  <div class="col-md-2">
+    <div class="form-text">Total</div>
+    <div id="total" class="fs-4 fw-bold">0,00</div>
+  </div>
+  <div class="col-12">
+    <span id="mismatch" class="badge bg-warning text-dark d-none">Las líneas no igualan el total del carrito</span>
+    <button id="confirmBtn" class="btn btn-success btn-sm" disabled>Confirmar</button>
+  </div>
+</div>
+
+<details class="mt-3"><summary>Debug</summary>
+  <pre id="result" class="bg-light p-2"></pre>
+</details>
+
+<script>
+let masters = {methods: [], brands: [], banks: [], acquirers: [], vat_rate: '0.21'};
+let methodByCode = {};
+let VAT_RATE = 0.21; // fallback
+let cartAmountState = 0; // importe del carrito
+
+function option(v, t){ const o = document.createElement('option'); o.value = v; o.textContent = t; return o; }
+
+async function loadMasters() {
+  const r = await fetch('./api/masters');
+  masters = await r.json();
+  methodByCode = {};
+  (masters.methods||[]).forEach(m => methodByCode[m.code] = m);
+  if (masters.vat_rate) {
+    const vr = parseFloat(masters.vat_rate);
+    if (!Number.isNaN(vr) && vr >= 0 && vr < 1) VAT_RATE = vr;
+  }
+}
+
+function setCartAmount(val){
+  cartAmountState = parseFloat(val||'0') || 0;
+  const label = document.getElementById('cartAmountLabel');
+  if (label) label.textContent = Number(cartAmountState).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  simulate();
+}
+
+function addLineRow() {
+  const tr = document.createElement('tr');
+  tr.innerHTML = '<td>'+
+      '<div class="input-group">'+
+      '  <input type="number" step="0.01" class="form-control amount" value="0">'+
+      '  <input type="number" step="0.01" min="0" max="100" class="form-control pct d-none" placeholder="%" value="0" style="max-width:100px">'+
+      '</div>'+
+      '<div class="mt-2 d-flex flex-wrap gap-2">'+
+      '  <button class="btn btn-outline-success btn-xs btn100">100% esta línea</button>'+
+      '  <button class="btn btn-outline-secondary btn-xs btnResto">Resto del carrito</button>'+
+      '  <button class="btn btn-outline-secondary btn-xs btnPct">% esta línea</button>'+
+      '</div>'+
+    '</td>'+
+    '<td><select class="form-select method"></select></td>'+
+    '<td><select class="form-select brand"><option value="">-</option></select></td>'+
+    '<td><select class="form-select bank"><option value="">-</option></select></td>'+
+    '<td><select class="form-select acq"><option value="">-</option></select></td>'+
+    '<td><select class="form-select plan"><option value="">-</option></select></td>'+
+    '<td><button class="btn btn-outline-danger btn-sm rem">Eliminar</button><div class="small text-muted mt-1 line-badges"></div></td>';
+
+  // método
+  const selMet = tr.querySelector('.method');
+  (masters.methods||[]).forEach(m => selMet.appendChild(option(m.code, m.name)));
+  const selBrand = tr.querySelector('.brand');
+  (masters.brands||[]).forEach(b => selBrand.appendChild(option(b, b)));
+  const selBank = tr.querySelector('.bank');
+  (masters.banks||[]).forEach(b => selBank.appendChild(option(b.code, b.name)));
+  const selAcq = tr.querySelector('.acq');
+  (masters.acquirers||[]).forEach(a => selAcq.appendChild(option(a.code, a.name)));
+
+  function togglePctMode(on){
+    tr.querySelector('.pct').classList.toggle('d-none', !on);
+    tr.querySelector('.amount').classList.toggle('d-none', on);
+  }
+
+  tr.querySelector('.btn100').addEventListener('click', ()=> distributeSingle100(tr));
+  tr.querySelector('.btnResto').addEventListener('click', ()=> distributeRemainder(tr));
+  tr.querySelector('.btnPct').addEventListener('click', ()=> { togglePctMode(true); });
+  tr.querySelector('.rem').addEventListener('click', ()=> tr.remove());
+
+  tr.querySelector('.method').addEventListener('change', ()=> refreshPlans(tr));
+  tr.querySelector('.brand').addEventListener('change', ()=> refreshPlans(tr));
+  tr.querySelector('.bank').addEventListener('change', ()=> refreshPlans(tr));
+  tr.querySelector('.acq').addEventListener('change', ()=> refreshPlans(tr));
+
+  document.getElementById('linesBody').appendChild(tr);
+}
+
+async function refreshPlans(tr){
+  const method = tr.querySelector('.method').value;
+  const brand = tr.querySelector('.brand').value;
+  const bank = tr.querySelector('.bank').value;
+  const acq = tr.querySelector('.acq').value;
+  const tasa1 = document.getElementById('tasa1').checked;
+  const r = await fetch(`./api/plans?method=${encodeURIComponent(method)}&brand=${encodeURIComponent(brand)}&bank=${encodeURIComponent(bank)}&acquirer=${encodeURIComponent(acq)}&tasa1=${tasa1?'1':'0'}`);
+  const data = await r.json();
+  const selPlan = tr.querySelector('.plan');
+  selPlan.innerHTML = '<option value="">-</option>';
+  (data||[]).forEach(p => {
+    const text = `${p.name} - ${p.fees} cuotas (coef ${p.coef})`;
+    selPlan.appendChild(option(p.id, text));
+  });
+}
+
+function getCartGross(){ return cartAmountState; }
+function isPctMode(){ return document.getElementById('distPct').checked; }
+function setAmount(tr, val){ const inp = tr.querySelector('.amount'); inp.value = (val||0).toFixed(2); }
+function distributeSingle100(targetTr){
+  const total = getCartGross();
+  document.querySelectorAll('#linesBody tr').forEach(tr=> setAmount(tr, 0));
+  setAmount(targetTr, total);
+}
+function distributeRemainder(targetTr){
+  const total = getCartGross();
+  let others = 0;
+  document.querySelectorAll('#linesBody tr').forEach(tr=>{ if(tr!==targetTr){ others += parseFloat(tr.querySelector('.amount').value||'0'); }});
+  const rest = Math.max(0, total - others);
+  setAmount(targetTr, rest);
+}
+function distributeByPct(){
+  const total = getCartGross();
+  const rows = Array.from(document.querySelectorAll('#linesBody tr'));
+  let prelim = rows.map(tr=>{
+    const pct = parseFloat(tr.querySelector('.pct').value||'0');
+    const val = (total * pct)/100;
+    const cents = Math.round(val*100);
+    return {tr, pct, val, cents};
+  });
+  const targetCents = Math.round(total*100);
+  let sumCents = prelim.reduce((s,x)=> s+x.cents,0);
+  let dif = targetCents - sumCents;
+  if(dif!==0){
+    prelim.sort((a,b)=> ((b.val*100 - Math.floor(b.val*100)) - (a.val*100 - Math.floor(a.val*100))));
+    for(let i=0; i<prelim.length && dif!==0; i++){
+      prelim[i].cents += (dif>0?1:-1);
+      dif += (dif>0?-1:1);
+    }
+  }
+  prelim.forEach(x=> setAmount(x.tr, x.cents/100));
+}
+
+document.getElementById('distMonto').addEventListener('change', ()=>{
+  document.querySelectorAll('#linesBody tr').forEach(tr=>{
+    tr.querySelector('.pct').classList.add('d-none');
+    tr.querySelector('.amount').classList.remove('d-none');
+  });
+});
+document.getElementById('distPct').addEventListener('change', ()=>{
+  document.querySelectorAll('#linesBody tr').forEach(tr=>{
+    tr.querySelector('.pct').classList.remove('d-none');
+    tr.querySelector('.amount').classList.add('d-none');
+  });
+  distributeByPct();
+});
+
+function composePayload(){
+  const rows = Array.from(document.querySelectorAll('#linesBody tr'));
+  const lines = rows.map(tr => ({
+    amount: parseFloat(tr.querySelector('.amount').value||'0'),
+    method_code: tr.querySelector('.method').value,
+    brand: tr.querySelector('.brand').value || null,
+    bank_code: tr.querySelector('.bank').value || null,
+    acquirer_code: tr.querySelector('.acq').value || null,
+    plan_id: tr.querySelector('.plan').value || null,
+  }));
+  return {
+    cart_amount: getCartGross(),
+    tasa1: document.getElementById('tasa1').checked,
+    lines,
+  };
+}
+
+function pintarResultados(data){
+  const subtotal = parseFloat(data.subtotal_base||0);
+  const interests = parseFloat(data.total_interest||0);
+  const total = parseFloat(data.total_to_charge||0);
+  const change = parseFloat(data.change_amount||0);
+  const remaining = parseFloat(data.remaining||0);
+  document.getElementById('sumLines').textContent = subtotal.toFixed(2);
+  document.getElementById('interests').textContent = interests.toFixed(2);
+  document.getElementById('total').textContent = total.toFixed(2);
+  // IVA y descuentos sumados a nivel línea (no vienen como agregados separados en esta API demo)
+  let vat = 0, disc = 0, base = 0;
+  (data.items||[]).forEach(it=>{ disc += (parseFloat(it.discounts_amount||0) || 0); vat += (parseFloat(it.vat_line||0) || 0); base += (parseFloat(it.net_after_discounts||0) || 0); });
+  document.getElementById('discounts').textContent = disc.toFixed(2);
+  document.getElementById('base').textContent = base.toFixed(2);
+  document.getElementById('vat').textContent = vat.toFixed(2);
+  const mm = document.getElementById('mismatch');
+  const ok = Math.abs(remaining) < 0.01;
+  mm.classList.toggle('d-none', ok);
+  document.getElementById('confirmBtn').disabled = !ok;
+  document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+}
+
+async function simulate(){
+  try{
+    const payload = composePayload();
+    const r = await fetch('./api/simulate', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) });
+    const data = await r.json();
+    if (!r.ok){ throw new Error(data.error || 'Error'); }
+    pintarResultados(data);
+  } catch(err){
+    document.getElementById('result').textContent = `error: ${err}`;
+    document.getElementById('confirmBtn').disabled = true;
+  }
+}
+
+document.getElementById('addLine').addEventListener('click', addLineRow);
+document.getElementById('simulateBtn').addEventListener('click', simulate);
+document.getElementById('onlyCards').addEventListener('change', () => {
+  const onlyCards = document.getElementById('onlyCards');
+  document.querySelectorAll('.method').forEach(sel => {
+    const current = sel.value;
+    sel.innerHTML='';
+    (masters.methods||[]).forEach(m => {
+      if(!onlyCards.checked || (m.function||'').toLowerCase()==='card'){
+        sel.appendChild(option(m.code, m.name));
+      }
+    });
+    if ([...sel.options].some(o=>o.value===current)) sel.value=current;
+  });
+});
+
+document.addEventListener('input', (e)=>{
+  if (e.target.id==='cartAmount'){
+    setCartAmount(e.target.value);
+  } else if (e.target.closest('#linesBody')){
+    simulate();
+  }
+});
+
+(async function(){
+  await loadMasters();
+  addLineRow();
+  setCartAmount(0);
+  simulate();
+})();
+
+// Permitir que el padre establezca el importe del carrito (pos_retail)
+window.addEventListener('message', (e) => {
+  try{
+    const d = e.data || {};
+    if (d.type === 'set_cart_amount') {
+      setCartAmount(d.cart_amount);
+    }
+  }catch(_){ }
+});
+</script>
+
+</body>
+</html>

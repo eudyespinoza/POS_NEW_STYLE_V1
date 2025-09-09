@@ -1,0 +1,49 @@
+{% extends "layout.html" %}
+{% block title %}Tarjeta{% endblock %}
+{% block content %}
+<div class="container py-3">
+  <h1 class="h5 mb-3">{{ card.id|default:'Nueva tarjeta' }}</h1>
+  {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+  <form method="post">{% csrf_token %}
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label">Marca</label>
+        <input name="brand" class="form-control" value="{{ card.brand }}" required>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Código</label>
+        <input name="card_code" class="form-control" value="{{ card.card_code }}" placeholder="Identificador opcional">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Banco</label>
+        <select name="bank_id" class="form-select">
+          <option value="">-</option>
+          {% for b in bancos %}
+          <option value="{{ b.id }}" {% if b.id|stringformat:'s' == card.bank_id|stringformat:'s' %}selected{% endif %}>{{ b.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Adquirente</label>
+        <select name="acquirer_id" class="form-select">
+          <option value="">-</option>
+          {% for a in acqs %}
+          <option value="{{ a.id }}" {% if a.id|stringformat:'s' == card.acquirer_id|stringformat:'s' %}selected{% endif %}>{{ a.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2 d-flex align-items-end">
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="enabled" id="enabled" {% if card.enabled %}checked{% endif %}>
+          <label class="form-check-label" for="enabled">Activa</label>
+        </div>
+      </div>
+    </div>
+    <div class="mt-3">
+      <a href="{% url 'core:config_cards_list' %}" class="btn btn-outline-secondary">Volver</a>
+      <button class="btn btn-primary" type="submit">Guardar</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+

@@ -19,6 +19,8 @@ from services.database import (
     obtener_empleados,
     obtener_todos_atributos,
 )
+from services.config import CACHE_FILE_CODIGOS_POSTALES
+from services.fabric import obtener_codigos_postales_fabric
 
 logger = get_module_logger(__name__)
 
@@ -44,6 +46,7 @@ except Exception:
     CACHE_FILE_STOCK     = os.path.join(CACHE_DIR, "stock_cache.parquet")
     CACHE_FILE_EMPLEADOS = os.path.join(CACHE_DIR, "empleados_cache.parquet")
     CACHE_FILE_ATRIBUTOS = os.path.join(CACHE_DIR, "atributos_cache.parquet")
+    CACHE_FILE_CODIGOS_POSTALES = os.path.join(CACHE_DIR, "codigos_postales_cache.parquet")
 
 # ----------------------------------------------------------------------
 # URLs (muévelas a config.ini si prefieres)
@@ -181,6 +184,31 @@ def actualizar_cache_atributos():
         logger.error(f"Error actualizar_cache_atributos: {e}", exc_info=True)
         try:
             enviar_correo_fallo("actualizar_cache_atributos", str(e))
+        except Exception:
+            logger.exception("Fallo enviando correo de error")
+        raise
+
+def actualizar_cache_codigos_postales():
+    """Construye el parquet de códigos postales desde Fabric.
+
+    Columnas: AddressZipCode, AddressCountryRegionId, AddressState, AddressCounty, AddressCity, CountyName
+    """
+    try:
+        logger.info("Obteniendo padrón de códigos postales desde Fabric...")
+        rows = obtener_codigos_postales_fabric() or []
+        if not rows:
+            logger.warning("No se obtuvieron códigos postales para cache.")
+            return
+        # Normalizar a pydict de listas
+        keys = list(rows[0].keys())
+        data = {k: [r.get(k) for r in rows] for k in keys}
+        table = pa.Table.from_pydict(data)
+        pq.write_table(table, CACHE_FILE_CODIGOS_POSTALES)
+        logger.info("Caché de códigos postales actualizada.")
+    except Exception as e:
+        logger.error(f"Error actualizar_cache_codigos_postales: {e}", exc_info=True)
+        try:
+            enviar_correo_fallo("actualizar_cache_codigos_postales", str(e))
         except Exception:
             logger.exception("Fallo enviando correo de error")
         raise

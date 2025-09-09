@@ -1,0 +1,13 @@
+{% extends "layout.html" %}
+{% block title %}Eliminar Descuento{% endblock %}
+{% block content %}
+<div class="container py-3">
+  <h1 class="h5 mb-3">Eliminar Descuento</h1>
+  <div class="alert alert-warning">¿Confirma eliminar el descuento de <strong>{{ item.pct }}%</strong>?</div>
+  <form method="post">{% csrf_token %}
+    <a href="{% url 'core:config_discounts_list' %}" class="btn btn-outline-secondary">Cancelar</a>
+    <button class="btn btn-danger" type="submit">Eliminar</button>
+  </form>
+</div>
+{% endblock %}
+

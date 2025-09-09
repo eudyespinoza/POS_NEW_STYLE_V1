@@ -1,0 +1,25 @@
+{% extends "layout.html" %}
+{% block title %}Tasa/Cuota{% endblock %}
+{% block content %}
+<div class="container py-3">
+  <h1 class="h5 mb-3">{{ item.id|default:'Nueva tasa' }}</h1>
+  {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+  <form method="post">{% csrf_token %}
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label">Cuotas</label>
+        <input type="number" class="form-control" name="fees" min="1" step="1" value="{{ item.fees|default:1 }}" required>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Coeficiente</label>
+        <input type="number" class="form-control" name="coef" min="0" step="0.0001" value="{{ item.coef|default:1 }}" required>
+      </div>
+    </div>
+    <div class="mt-3">
+      <a href="{% url 'core:config_plan_rates' plan_id %}" class="btn btn-outline-secondary">Volver</a>
+      <button class="btn btn-primary" type="submit">Guardar</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+

@@ -1,0 +1,288 @@
+:root {
+  /* Toque corporativo: rojo base */
+  --brand-primary: #df0209; /* rojo base */
+  --brand-black: #0d0d0d;   /* negro pintura auto */
+}
+
+/* Override Bootstrap 5.3 theme variables for a cohesive look */
+[data-bs-theme="light"] {
+  --bs-primary: var(--brand-primary);
+  --bs-link-color: var(--brand-primary);
+  --bs-body-bg: #f4f6f8;
+  --bs-body-color: #2c3e50;
+  --bs-card-bg: #ffffff;
+  --bs-card-border-color: rgba(0,0,0,.06);
+  --bs-border-radius: 0.75rem;
+  --bs-border-radius-lg: 1rem;
+}
+
+[data-bs-theme="dark"] {
+  --bs-primary: var(--brand-primary);
+  --bs-link-color: var(--brand-primary);
+  --bs-body-bg: #121417;
+  --bs-body-color: #e6edf3;
+  --bs-card-bg: #161a1d;
+  --bs-card-border-color: rgba(255,255,255,.06);
+  --bs-secondary-bg: #1b2024;
+  --bs-border-radius: 0.75rem;
+  --bs-border-radius-lg: 1rem;
+}
+
+/* Cards con sombras marcadas */
+.card, .offcanvas, .modal-content {
+  border-radius: 16px !important;
+  box-shadow: 0 14px 44px rgba(0,0,0,.28) !important;
+}
+
+/* Ajustes específicos a la UI existente */
+.small-card {
+  border: none !important;
+  border-radius: 16px !important;
+  box-shadow: 0 10px 30px rgba(0,0,0,.18) !important;
+  overflow: hidden;
+}
+.small-card .card-body { padding: .75rem .75rem 1rem .75rem; }
+.small-card .btn { border-radius: 999px; }
+.filters-container { background: var(--bs-secondary-bg, #f8f9fa); border-radius: 12px; padding: 12px; }
+.search-floating { background: var(--bs-secondary-bg, #fff); border-radius: 999px; padding: 8px 12px; box-shadow: 0 6px 20px rgba(0,0,0,.08); }
+.view-selector .btn { border-radius: 999px; }
+.cart-float-btn { border-radius: 999px; box-shadow: 0 8px 26px rgba(0,0,0,.18); }
+
+/* Tarjeta producto */
+.card-product {
+  transition: transform .15s ease, box-shadow .15s ease;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+}
+.card-product:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 22px 60px rgba(0,0,0,.32) !important;
+}
+
+.card-product .card-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+}
+
+/* Header flexible: nombre + badge envuelven en pantallas chicas */
+.card-product .card-body .d-flex.justify-content-between {
+  flex-wrap: wrap;
+}
+
+/* Nombre del producto: que corte y no desborde */
+.card-product .card-title {
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Línea de botones al final de la tarjeta y envolvente si falta espacio */
+.card-product .card-body > .d-flex.mt-2.gap-2 {
+  margin-top: auto;
+  flex-wrap: wrap;
+}
+
+/* Botones primarios con color de marca */
+.btn-primary {
+  background: var(--brand-primary) !important;
+  border-color: var(--brand-primary) !important;
+}
+.btn-outline-primary { color: var(--brand-primary) !important; border-color: var(--brand-primary) !important; }
+.btn-outline-primary:hover { background: var(--brand-primary) !important; color: #fff !important; }
+
+/* Etiquetas pequeñas dentro de las cards */
+.badge-soft {
+  background: rgba(223,2,9,.12);
+  color: var(--brand-primary);
+  border: 1px solid rgba(223,2,9,.3);
+}
+
+.category-badge {
+  display: -webkit-box;
+  max-width: 100%;
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.15;
+  font-size: .75rem;
+  padding: .35rem .5rem;
+  text-align: center;
+}
+
+/* List group carrito */
+.list-group-item .actions {
+  opacity: .8;
+}
+.list-group-item:hover .actions {
+  opacity: 1;
+}
+
+/* Imprimible (presupuesto/comprobante) */
+@media print {
+  body { background: #fff !important; }
+}
+
+/* Input grandes mejor tacto */
+.form-control-lg {
+  border-radius: 12px;
+}
+
+/* Grid catálogo responsivo */
+#gridCatalogo > div { display: flex; }
+#gridCatalogo .card { width: 100%; }
+
+/* Indicadores totals */
+#totTotal {
+  color: var(--brand-primary);
+}
+
+/* Carrito en pantalla completa */
+.offcanvas-fullscreen {
+  width: 100% !important;
+  max-width: 100% !important;
+  border-radius: 0 !important;
+}
+
+/* Imágenes en cards (lazyload + spinner) */
+.image-container { position: relative; overflow: hidden; }
+.image-spinner { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2; }
+.image-skeleton { position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(110deg, rgba(0,0,0,0.08) 8%, rgba(0,0,0,0.16) 18%, rgba(0,0,0,0.08) 33%); background-size: 200% 100%; animation: shimmer 1.2s linear infinite; z-index: 1; }
+@keyframes shimmer { to { background-position-x: -200%; } }
+.product-image { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; display: block; opacity: .0; transition: opacity .25s ease; background-color: var(--bs-secondary-bg, #f0f0f0); }
+.product-image.loaded { opacity: 1; }
+
+/* Aumentar ~10% la altura efectiva de la imagen manteniendo proporción */
+.card-product .image-container.ratio-4x3 { --bs-aspect-ratio: 100% !important; }
+
+/* Asegurar que la imagen del modal de detalles no se recorte */
+#productDetailsImage { object-fit: contain !important; background-color: var(--bs-secondary-bg, #f0f0f0); }
+
+/* Modal imagen (zoom): mantener tamaño L y esquinas redondeadas */
+#imageModal .modal-content {
+  border-radius: 16px !important;
+  overflow: hidden;
+}
+#imageModal #modalImage {
+  display: block;
+  border-radius: 0; /* queda recortado por overflow del contenedor */
+}
+
+/* Difuminado del fondo oscuro de todos los modales */
+.modal-backdrop {
+  /* Asegurar semitransparencia por color (no por opacity) para que el blur sea visible */
+  --bs-backdrop-bg: rgba(0,0,0,.35) !important;
+  --bs-backdrop-opacity: 1 !important;
+  -webkit-backdrop-filter: blur(5px) !important;
+  backdrop-filter: blur(5px) !important;
+}
+
+/* Paginación compacta */
+.pagination-retail .btn-group { gap: .25rem; flex-wrap: wrap; justify-content: center; }
+.pagination-retail .btn-group .btn { min-width: 2.25rem; }
+
+/* Separación extra entre filtros y grilla */
+.filters-card { margin-bottom: 1rem; }
+.filters-card .advancedFilters { margin-bottom: .75rem; }
+
+/* Chips de filtros activos */
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .25rem .5rem;
+  border-radius: 999px;
+  background: var(--bs-secondary-bg, #f0f0f0);
+  border: 1px solid rgba(0,0,0,.08);
+  font-size: .8rem;
+}
+.filter-chip .btn-clear {
+  border: none;
+  background: transparent;
+  padding: 0;
+  line-height: 1;
+  color: var(--bs-body-color,#333);
+}
+/* Product Details Modal (aesthetic) */
+.modal-product .price-display { font-weight: 700; font-size: clamp(1.25rem, 2vw, 1.75rem); color: var(--brand-primary); }
+.modal-product .info-badges .badge { background: var(--bs-secondary-bg, #f3f4f6); border: 1px solid rgba(0,0,0,.06); }
+.modal-product #productDetailsImage { transition: transform .25s ease, box-shadow .25s ease; border-radius: 12px; }
+.modal-product #productDetailsImage:hover { transform: scale(1.02); box-shadow: 0 10px 24px rgba(0,0,0,.2); }
+.modal-product #productDetailsDescBlock { background: var(--bs-secondary-bg, #f8f9fa); border: 1px solid rgba(0,0,0,.06); border-radius: 12px; padding: .75rem .9rem; }
+
+/* Modal XXL (personalizado): más ancho que modal-xl, sin llegar a fullscreen */
+.modal-dialog.modal-xxl { max-width: min(95vw, 1320px); }
+@media (min-width: 1400px) {
+  .modal-dialog.modal-xxl { max-width: 1320px; }
+}
+
+/* Galería en modal de detalles */
+.image-zoom { overflow: hidden; }
+.image-zoom img { transition: transform .25s ease, box-shadow .25s ease; transform-origin: center center; }
+/* Activar zoom solo cuando el puntero está sobre la imagen, no sobre botones */
+.image-zoom img:hover { transform: scale(1.6); }
+.image-zoom .btn { opacity: .85; }
+.image-zoom .btn:hover { opacity: 1; }
+.image-zoom .nav-btn {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  font-size: 1.1rem;
+}
+/* Forzar anclajes izquierdo/derecho para evitar herencia de .ratio > * */
+.image-zoom > #pdImgPrev { left: 8px !important; right: auto !important; top: 50% !important; transform: translateY(-50%); }
+.image-zoom > #pdImgNext { right: 8px !important; left: auto !important; top: 50% !important; transform: translateY(-50%); }
+
+#productDetailsThumbs img {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+#productDetailsThumbs img.active { border-color: var(--brand-primary); }
+
+/* Client Search modal header aligned with App theme (neutral, not blue) */
+.client-search-modal .modal-header {
+  background-color: var(--bs-body-bg) !important;
+  color: var(--bs-body-color) !important;
+}
+.nav-btn {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+}
+/* Uniform modal backdrop blur for POS Retail */
+.modal-backdrop.show {
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  background-color: rgba(0, 0, 0, 0.35);
+}
+
+/* Center all modals vertically and horizontally (POS Retail pages) */
+.modal.show .modal-dialog {
+  display: flex;
+  align-items: center;
+  min-height: calc(100% - var(--bs-modal-margin, 1rem) * 2);
+  margin: auto;
+}
+
+/* Stacking for nested modals (e.g., Dirección sobre Logística) */
+.modal.modal-front { z-index: 1065; }
+.modal-backdrop.backdrop-front { z-index: 1060; }

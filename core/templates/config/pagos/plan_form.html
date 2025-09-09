@@ -1,0 +1,48 @@
+{% extends "layout.html" %}
+{% block title %}Plan de financiación{% endblock %}
+{% block content %}
+<div class="container py-3">
+  <h1 class="h5 mb-3">{{ item.id|default:'Nuevo plan' }}</h1>
+  {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+  <form method="post">{% csrf_token %}
+    <div class="row g-3">
+      <div class="col-md-3">
+        <label class="form-label">Código</label>
+        <input name="code" class="form-control" value="{{ item.code }}" required>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Nombre</label>
+        <input name="name" class="form-control" value="{{ item.name }}" required>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Método</label>
+        <select name="method_id" class="form-select">
+          <option value="">-</option>
+          {% for m in metodos %}
+          <option value="{{ m.id }}" {% if m.id|stringformat:'s' == item.method_id|stringformat:'s' %}selected{% endif %}>{{ m.name }} ({{ m.code }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Vigencia desde</label>
+        <input type="datetime-local" name="valid_from" class="form-control" value="{{ item.VigenciaDesde }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Vigencia hasta</label>
+        <input type="datetime-local" name="valid_to" class="form-control" value="{{ item.VigenciaHasta }}">
+      </div>
+      <div class="col-md-2 d-flex align-items-end">
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="enabled" id="enabled" {% if item.enabled %}checked{% endif %}>
+          <label class="form-check-label" for="enabled">Activo</label>
+        </div>
+      </div>
+    </div>
+    <div class="mt-3">
+      <a href="{% url 'core:config_plans_list' %}" class="btn btn-outline-secondary">Volver</a>
+      <button class="btn btn-primary" type="submit">Guardar</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+

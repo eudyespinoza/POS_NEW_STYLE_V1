@@ -292,6 +292,64 @@ def obtener_datos_tiendas():
             conexion_fabric.close()
             logger.info("Conexión con Fabric cerrada.")
 
+def obtener_codigos_postales_fabric():
+    """Obtiene el padrón de códigos postales para Argentina desde Fabric.
+
+    Devuelve una lista de dict con claves:
+    - AddressZipCode, AddressCountryRegionId, AddressState, AddressCounty, AddressCity, CountyName
+    """
+    query = """
+    SELECT
+        AD.[value.ZipCode] AS AddressZipCode,
+        AD.[value.CountryRegionId] AS AddressCountryRegionId,
+        AD.[value.StateId] AS AddressState,
+        AD.[value.CountyId] AS AddressCounty,
+        AD.[value.CityAlias] AS AddressCity,
+        AC.[value.Description] AS CountyName
+    FROM [DataStagingWarehouse].[dbo].[AddressPostalCodesV3] AD
+    INNER JOIN [DataStagingWarehouse].[dbo].[AddressCounties] AC
+        ON AD.[value.CountyId]=AC.[value.CountyId]
+    WHERE
+        AD.[value.ZipCode] <> ''
+        AND AD.[value.ZipCode] LIKE '%[0-9]%'
+        AND AD.[value.ZipCode] NOT LIKE '%[^0-9]%'
+        AND AD.[value.StateId] <> ''
+        AND AD.[value.CountyId] <> ''
+        AND AD.[value.CountryRegionId] = 'ARG';
+    """
+
+    conexion_fabric = conectar_fabric_db()
+    if not conexion_fabric:
+        logger.error("No se pudo conectar a Fabric.")
+        return []
+    try:
+        cursor = conexion_fabric.cursor()
+        cursor.execute(query)
+        filas = cursor.fetchall()
+        out = []
+        for row in filas:
+            try:
+                out.append({
+                    "AddressZipCode": row.AddressZipCode,
+                    "AddressCountryRegionId": row.AddressCountryRegionId,
+                    "AddressState": row.AddressState,
+                    "AddressCounty": row.AddressCounty,
+                    "AddressCity": row.AddressCity,
+                    "CountyName": row.CountyName,
+                })
+            except Exception:
+                continue
+        logger.info(f"obtener_codigos_postales_fabric: {len(out)} registros")
+        return out
+    except Exception as e:
+        logger.error(f"Error obtener_codigos_postales_fabric: {e}\n{traceback.format_exc()}")
+        return []
+    finally:
+        try:
+            conexion_fabric.close()
+        except Exception:
+            pass
+
 async def obtener_datos_codigo_postal(codigo_postal):
     """Consulta Fabric para obtener datos de dirección basados en el código postal."""
     logger.info(f"Consultando datos para código postal: {codigo_postal}")

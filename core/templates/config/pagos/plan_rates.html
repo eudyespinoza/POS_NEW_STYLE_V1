@@ -1,0 +1,35 @@
+{% extends "layout.html" %}
+{% block title %}Tasas/Cuotas{% endblock %}
+{% block content %}
+<div class="container py-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h6 m-0">Tasas/Cuotas para {{ header.code }} - {{ header.name }}</h1>
+    <a href="{% url 'core:config_plan_rate_create' header.id %}" class="btn btn-primary btn-sm">Nueva tasa</a>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm table-striped align-middle">
+      <thead>
+        <tr><th>Id</th><th>Cuotas</th><th>Coeficiente</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for r in rates %}
+        <tr>
+          <td>{{ r.id }}</td>
+          <td>{{ r.fees }}</td>
+          <td>{{ r.coef }}</td>
+          <td class="text-end">
+            <a href="{% url 'core:config_plan_rate_update' header.id r.id %}" class="btn btn-outline-primary btn-sm">Editar</a>
+            <a href="{% url 'core:config_plan_rate_delete' header.id r.id %}" class="btn btn-outline-danger btn-sm">Eliminar</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="text-center text-muted">Sin tasas</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <a href="{% url 'core:config_plans_list' %}" class="btn btn-outline-secondary btn-sm">Volver a planes</a>
+  
+</div>
+{% endblock %}
+

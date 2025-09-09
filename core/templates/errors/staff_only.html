@@ -1,0 +1,35 @@
+{% extends "layout.html" %}
+{% block title %}Acceso Restringido{% endblock %}
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="alert alert-warning shadow-sm" role="alert">
+        <h4 class="alert-heading"><i class="bi bi-shield-lock me-2"></i>Área restringida</h4>
+        <p>Esta sección requiere permisos de <strong>staff</strong>. Tu cuenta está autenticada pero no tiene los privilegios necesarios para acceder.</p>
+        <hr>
+        <p class="mb-0">Si creés que se trata de un error, contactá al administrador del sistema.</p>
+      </div>
+      <a href="{% url 'core:home' %}" class="btn btn-outline-secondary rounded-pill"><i class="bi bi-arrow-left"></i> Volver al inicio</a>
+    </div>
+  </div>
+  {% if messages %}
+  <div class="toast-container position-fixed bottom-0 end-0 p-3">
+    {% for message in messages %}
+      <div class="toast align-items-center text-bg-{{ message.tags|default:'info' }} border-0" role="alert" data-bs-delay="3000">
+        <div class="d-flex">
+          <div class="toast-body">{{ message }}</div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      document.querySelectorAll('.toast').forEach(t => new bootstrap.Toast(t).show());
+    });
+  </script>
+  {% endif %}
+</div>
+{% endblock %}
+

@@ -157,7 +157,7 @@ def login_view(request):
             dj_login(request, user)
 
             messages.success(request, "Iniciaste sesión con éxito.")
-            next_url = request.GET.get("next") or reverse("core:home")
+            next_url = request.GET.get("next") or reverse("core:pos_retail")
             return redirect(next_url)
         except Exception as e:
             logger.exception("Fallo inesperado en login_view: %s", e)

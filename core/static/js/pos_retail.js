@@ -1654,7 +1654,13 @@ function renderCarrito() {
   $("#totImpuestos").textContent = money(t.impuestos);
   $("#totTotal").textContent = money(t.total);
   $("#totPeso").textContent = `${(t.peso || 0).toFixed(2)} kg / ${t.unidades}`;
-  try { const bc = document.getElementById('badgeCount'); if (bc) bc.textContent = state.carrito.items.reduce((a,b)=> a + b.cantidad, 0); } catch(_){}
+  try {
+    const bc = document.getElementById('badgeCount');
+    if (bc) bc.textContent = state.carrito.items.reduce((a,b)=>{
+      const qty = Number(b.cantidad)||0;
+      return a + (isUnidadM2(b.unidad) ? Math.round(qty / (Number(b.multiplo)||1)) : qty);
+    }, 0);
+  } catch(_){}
 
   // actualizar simulador
   $("#simTotal").textContent = money(t.total);
